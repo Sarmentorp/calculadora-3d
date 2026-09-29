@@ -13,7 +13,7 @@ const SESSION_DIAS = 30;
 // Limites do plano grátis. Quando existir plano premium de verdade, isso
 // deixa de valer pra quem tiver is_premium = 1.
 const LIMITES_GRATIS = {
-  impressoras: 1,
+  impressoras: 2,
 };
 
 function limparSessoesExpiradas() {

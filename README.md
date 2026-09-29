@@ -54,7 +54,7 @@ entrar numa existente. Com a conta, a aba **Impressoras** deixa de ficar
 travada: você cadastra suas impressoras (nome, preço, vida útil, potência) e
 marca uma como "em uso" — ela passa a alimentar a calculadora automaticamente
 (as Configurações mostram essa impressora e o cálculo já usa o custo por hora
-dela). No plano grátis dá pra salvar 1 impressora; o plano premium (ainda não
+dela). No plano grátis dá pra salvar 2 impressoras; o plano premium (ainda não
 existe forma de assinar) vai liberar impressoras ilimitadas.
 
 ## Estrutura do projeto

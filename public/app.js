@@ -215,8 +215,9 @@ function renderPrintersList() {
   }
 
   if (!isPremium && printers.length >= limiteGratis) {
+    const substantivo = limiteGratis === 1 ? 'impressora salva' : 'impressoras salvas';
     hint.hidden = false;
-    hint.textContent = `Plano grátis: ${printers.length}/${limiteGratis} impressora salva. Em breve: plano premium com impressoras ilimitadas.`;
+    hint.textContent = `Plano grátis: ${printers.length}/${limiteGratis} ${substantivo}. Em breve: plano premium com impressoras ilimitadas.`;
     novaBtn.disabled = true;
   } else {
     hint.hidden = true;

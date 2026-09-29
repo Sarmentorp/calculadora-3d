@@ -112,9 +112,11 @@ app.post('/api/impressoras', auth.exigirLogin, (req, res) => {
   if (!req.user.is_premium) {
     const total = db.prepare('SELECT COUNT(*) AS n FROM printers WHERE user_id = ?').get(req.user.id).n;
     if (total >= auth.LIMITES_GRATIS.impressoras) {
+      const limite = auth.LIMITES_GRATIS.impressoras;
+      const substantivo = limite === 1 ? 'impressora' : 'impressoras';
       return res.status(403).json({
         error: 'limite_gratis',
-        message: `No plano grátis você pode salvar ${auth.LIMITES_GRATIS.impressoras} impressora. Em breve: plano premium com impressoras ilimitadas.`,
+        message: `No plano grátis você pode salvar até ${limite} ${substantivo}. Em breve: plano premium com impressoras ilimitadas.`,
       });
     }
   }
