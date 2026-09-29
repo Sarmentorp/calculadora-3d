@@ -26,11 +26,16 @@
         <span class="brand-tagline">Custos, preços e orçamentos para impressão 3D</span>
       </div>
     </div>
-    <button id="settingsBtn" class="icon-btn" aria-label="Configurações de custo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>
-      </svg>
-    </button>
+
+    <div class="topbar-actions">
+      <div id="userArea" class="user-area"></div>
+
+      <button id="settingsBtn" class="icon-btn" aria-label="Configurações de custo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <nav class="tabs">
@@ -46,7 +51,7 @@
       </svg>
       Produtos
     </button>
-    <button class="tab disabled" title="Chega na Etapa 4">
+    <button class="tab" data-tab="impressoras">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>
       </svg>
@@ -61,127 +66,153 @@
   </nav>
 
   <main class="content">
-    <h1>Calculadora de preços</h1>
-    <p class="subtitle">Calcule seus custos e defina o preço de cada peça.</p>
 
-    <div class="calc-layout">
-      <section class="card form-card">
-        <label class="field">
-          <span>Peso de impressão</span>
-          <div class="input-suffix">
-            <input type="number" id="peso" min="0" step="0.1" placeholder="Ex: 45">
-            <span class="suffix">g</span>
-          </div>
-        </label>
+    <section id="view-calculadora" class="view">
+      <h1>Calculadora de preços</h1>
+      <p class="subtitle">Calcule seus custos e defina o preço de cada peça.</p>
 
-        <label class="field">
-          <span>Tempo de impressão</span>
-          <div class="time-row">
-            <div class="input-suffix">
-              <input type="number" id="horas" min="0" step="1" placeholder="0">
-              <span class="suffix">h</span>
-            </div>
-            <div class="input-suffix">
-              <input type="number" id="minutos" min="0" max="59" step="1" placeholder="00">
-              <span class="suffix">min</span>
-            </div>
-          </div>
-        </label>
-
-        <label class="field">
-          <span>Quanto você quer ganhar em cima do custo?</span>
-          <div class="margin-row">
-            <button class="chip active" data-margin="50">+50%</button>
-            <button class="chip" data-margin="75">+75%</button>
-            <button class="chip" data-margin="100">+100%</button>
-            <button class="chip" data-margin="200">+200%</button>
-            <div class="input-suffix chip-custom">
-              <input type="number" id="margemCustom" min="0" step="1" value="50">
-              <span class="suffix">%</span>
-            </div>
-          </div>
-        </label>
-
-        <div class="subsection-title">Marketplace</div>
-
-        <label class="field">
-          <span>Vai anunciar em algum marketplace?</span>
-          <select id="marketplace" class="select-field">
-            <option value="nenhum">Não, venda direta (WhatsApp, Instagram etc.)</option>
-            <option value="ml_classico">Mercado Livre — Clássico</option>
-            <option value="ml_premium">Mercado Livre — Premium</option>
-            <option value="shopee">Shopee</option>
-            <option value="tiktok">TikTok Shop</option>
-          </select>
-        </label>
-
-        <div id="marketplaceFields" hidden>
+      <div class="calc-layout">
+        <section class="card form-card">
           <label class="field">
-            <span>Comissão da plataforma</span>
+            <span>Peso de impressão</span>
             <div class="input-suffix">
-              <input type="number" id="comissaoPct" min="0" max="50" step="0.1">
-              <span class="suffix">%</span>
+              <input type="number" id="peso" min="0" step="0.1" placeholder="Ex: 45">
+              <span class="suffix">g</span>
             </div>
           </label>
 
           <label class="field">
-            <span>Taxa fixa por item vendido</span>
-            <div class="input-suffix">
-              <span class="prefix">R$</span>
-              <input type="number" id="taxaFixaMarketplace" min="0" step="0.01">
+            <span>Tempo de impressão</span>
+            <div class="time-row">
+              <div class="input-suffix">
+                <input type="number" id="horas" min="0" step="1" placeholder="0">
+                <span class="suffix">h</span>
+              </div>
+              <div class="input-suffix">
+                <input type="number" id="minutos" min="0" max="59" step="1" placeholder="00">
+                <span class="suffix">min</span>
+              </div>
             </div>
-            <p class="field-hint" id="marketplaceHint"></p>
           </label>
+
+          <label class="field">
+            <span>Quanto você quer ganhar em cima do custo?</span>
+            <div class="margin-row">
+              <button class="chip active" data-margin="50">+50%</button>
+              <button class="chip" data-margin="75">+75%</button>
+              <button class="chip" data-margin="100">+100%</button>
+              <button class="chip" data-margin="200">+200%</button>
+              <div class="input-suffix chip-custom">
+                <input type="number" id="margemCustom" min="0" step="1" value="50">
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </label>
+
+          <div class="subsection-title">Marketplace</div>
+
+          <label class="field">
+            <span>Vai anunciar em algum marketplace?</span>
+            <select id="marketplace" class="select-field">
+              <option value="nenhum">Não, venda direta (WhatsApp, Instagram etc.)</option>
+              <option value="ml_classico">Mercado Livre — Clássico</option>
+              <option value="ml_premium">Mercado Livre — Premium</option>
+              <option value="shopee">Shopee</option>
+              <option value="tiktok">TikTok Shop</option>
+            </select>
+          </label>
+
+          <div id="marketplaceFields" hidden>
+            <label class="field">
+              <span>Comissão da plataforma</span>
+              <div class="input-suffix">
+                <input type="number" id="comissaoPct" min="0" max="50" step="0.1">
+                <span class="suffix">%</span>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Taxa fixa por item vendido</span>
+              <div class="input-suffix">
+                <span class="prefix">R$</span>
+                <input type="number" id="taxaFixaMarketplace" min="0" step="0.01">
+              </div>
+              <p class="field-hint" id="marketplaceHint"></p>
+            </label>
+          </div>
+
+          <details class="advanced">
+            <summary>Opções avançadas<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+
+            <label class="field">
+              <span>Embalagem <em>(padrão: R$ 1,00)</em></span>
+              <div class="input-suffix">
+                <span class="prefix">R$</span>
+                <input type="number" id="embalagem" min="0" step="0.01" value="1.00">
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Taxa de falha <em>(padrão: 10%)</em></span>
+              <div class="input-suffix">
+                <input type="number" id="taxaFalha" min="0" max="90" step="1" value="10">
+                <span class="suffix">%</span>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Custos extras</span>
+              <div class="input-suffix">
+                <span class="prefix">R$</span>
+                <input type="number" id="custosExtras" min="0" step="0.01" value="0">
+              </div>
+            </label>
+
+            <label class="checkbox-field">
+              <input type="checkbox" id="precoMarketeiro">
+              <span>Preço marketeiro <em>(arredonda para terminar em ,90)</em></span>
+            </label>
+          </details>
+        </section>
+
+        <aside class="card summary-card">
+          <div class="result-box">
+            <span class="result-label" id="resultLabel">PREÇO SUGERIDO</span>
+            <span class="result-value" id="resultado">R$ --,--</span>
+            <p class="result-hint" id="resultHint">Preencha o peso e o tempo de impressão para ver o resultado.</p>
+            <p class="result-sub" id="resultSub" hidden></p>
+          </div>
+
+          <details class="breakdown" id="breakdown" hidden>
+            <summary>Ver como esse preço foi calculado<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+            <div id="breakdownBody"></div>
+          </details>
+        </aside>
+      </div>
+    </section>
+
+    <section id="view-impressoras" class="view" hidden>
+      <h1>Impressoras</h1>
+      <p class="subtitle">Salve as impressoras que você usa pra calcular o custo por hora automaticamente.</p>
+
+      <div id="impressorasLoggedOut" class="card auth-gate" hidden>
+        <p>Crie uma conta grátis pra salvar suas impressoras e usá-las direto na calculadora, de qualquer aparelho.</p>
+        <div class="auth-gate-actions">
+          <button class="btn-primary" id="impressorasEntrarBtn">Entrar</button>
+          <button class="btn-secondary" id="impressorasCadastrarBtn">Criar conta grátis</button>
         </div>
+      </div>
 
-        <details class="advanced">
-          <summary>Opções avançadas<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
-
-          <label class="field">
-            <span>Embalagem <em>(padrão: R$ 1,00)</em></span>
-            <div class="input-suffix">
-              <span class="prefix">R$</span>
-              <input type="number" id="embalagem" min="0" step="0.01" value="1.00">
-            </div>
-          </label>
-
-          <label class="field">
-            <span>Taxa de falha <em>(padrão: 10%)</em></span>
-            <div class="input-suffix">
-              <input type="number" id="taxaFalha" min="0" max="90" step="1" value="10">
-              <span class="suffix">%</span>
-            </div>
-          </label>
-
-          <label class="field">
-            <span>Custos extras</span>
-            <div class="input-suffix">
-              <span class="prefix">R$</span>
-              <input type="number" id="custosExtras" min="0" step="0.01" value="0">
-            </div>
-          </label>
-
-          <label class="checkbox-field">
-            <input type="checkbox" id="precoMarketeiro">
-            <span>Preço marketeiro <em>(arredonda para terminar em ,90)</em></span>
-          </label>
-        </details>
-      </section>
-
-      <aside class="card summary-card">
-        <div class="result-box">
-          <span class="result-label" id="resultLabel">PREÇO SUGERIDO</span>
-          <span class="result-value" id="resultado">R$ --,--</span>
-          <p class="result-hint" id="resultHint">Preencha o peso e o tempo de impressão para ver o resultado.</p>
-          <p class="result-sub" id="resultSub" hidden></p>
+      <div id="impressorasLoggedIn" hidden>
+        <div class="printers-toolbar">
+          <button class="btn-primary" id="novaImpressoraBtn">+ Nova impressora</button>
+          <p class="field-hint" id="printersLimitHint" hidden></p>
         </div>
+        <p class="field-hint error-text" id="printersError" hidden></p>
+        <div id="printersList" class="printers-grid"></div>
+      </div>
+    </section>
 
-        <details class="breakdown" id="breakdown" hidden>
-          <summary>Ver como esse preço foi calculado<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
-          <div id="breakdownBody"></div>
-        </details>
-      </aside>
-    </div>
   </main>
 
   <footer class="site-footer">
@@ -192,7 +223,7 @@
   <div class="modal-backdrop" id="settingsModal" hidden>
     <div class="modal">
       <h2>Configurações de custo</h2>
-      <p class="modal-sub">Esses valores ficam salvos neste navegador. Nas próximas etapas eles passam a ficar salvos na sua conta.</p>
+      <p class="modal-sub" id="settingsModalSub">Esses valores ficam salvos neste navegador. Entre na sua conta e cadastre suas impressoras na aba Impressoras pra usá-las aqui.</p>
 
       <label class="field">
         <span>Preço do filamento (por kg)</span>
@@ -251,6 +282,89 @@
     </div>
   </div>
 
+  <!-- Modal de entrar / criar conta -->
+  <div class="modal-backdrop" id="authModal" hidden>
+    <div class="modal">
+      <h2 id="authModalTitle">Entrar</h2>
+      <p class="modal-sub" id="authModalSub">Entre pra salvar suas impressoras, produtos e encomendas.</p>
+
+      <form id="authForm">
+        <label class="field">
+          <span>E-mail</span>
+          <div class="input-suffix">
+            <input type="email" id="authEmail" required autocomplete="email">
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Senha</span>
+          <div class="input-suffix">
+            <input type="password" id="authSenha" required minlength="6" autocomplete="current-password">
+          </div>
+          <p class="field-hint">Pelo menos 6 caracteres.</p>
+        </label>
+
+        <p class="field-hint error-text" id="authError" hidden></p>
+
+        <div class="modal-actions modal-actions-split">
+          <button type="button" class="btn-link" id="authSwitchMode">Ainda não tem conta? Cadastre-se</button>
+          <button type="submit" class="btn-primary" id="authSubmitBtn">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de criar / editar impressora -->
+  <div class="modal-backdrop" id="printerModal" hidden>
+    <div class="modal">
+      <h2 id="printerModalTitle">Nova impressora</h2>
+
+      <form id="printerForm">
+        <input type="hidden" id="printerId">
+
+        <label class="field">
+          <span>Nome</span>
+          <div class="input-suffix">
+            <input type="text" id="printerNome" required maxlength="80" placeholder="Ex: Bambu Lab A1 mini">
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Preço da impressora</span>
+          <div class="input-suffix">
+            <span class="prefix">R$</span>
+            <input type="number" id="printerPreco" min="0" step="0.01" required>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Vida útil estimada</span>
+          <div class="input-suffix">
+            <input type="number" id="printerVidaUtil" min="1" step="1" required>
+            <span class="suffix">h</span>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Potência média durante a impressão</span>
+          <div class="input-suffix">
+            <input type="number" id="printerPotencia" min="0" step="1" required>
+            <span class="suffix">W</span>
+          </div>
+          <p class="field-hint" id="printerCustoHoraPreview"></p>
+        </label>
+
+        <p class="field-hint error-text" id="printerFormError" hidden></p>
+
+        <div class="modal-actions modal-actions-split">
+          <button type="button" class="btn-ghost" id="printerCancelBtn">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="calculator.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

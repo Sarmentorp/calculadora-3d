@@ -6,17 +6,36 @@
 
 const SETTINGS_KEY = 'precifica3d_settings';
 
+// Impressoras pré-cadastradas (Etapa 4 vai deixar isso mais completo, com
+// várias impressoras salvas de uma vez — por enquanto é só um atalho pra
+// preencher as Configurações).
+const PRINTER_PRESETS = {
+  a1mini: {
+    nome: 'Bambu Lab A1 mini',
+    potencia: 90,        // W médios durante a impressão (fabricante indica 50-130 W)
+    preco: 2319.00,       // R$, preço de tabela em set/2026 — ajuste pro que você pagou
+    vidaUtilHoras: 3000,  // estimativa de vida útil pra fins de depreciação
+  },
+};
+
 const defaultSettings = {
-  precoFilamento: 89.90,       // R$ por kg
-  custoImpressoraHora: 0.73,   // R$ por hora (depreciação da máquina)
-  potenciaImpressora: 150,     // Watts
-  tarifaEnergia: 0.95,         // R$ por kWh
+  precoFilamento: 89.90,                          // R$ por kg
+  printerPreset: 'a1mini',
+  precoImpressora: PRINTER_PRESETS.a1mini.preco,   // R$
+  vidaUtilHoras: PRINTER_PRESETS.a1mini.vidaUtilHoras,
+  potenciaImpressora: PRINTER_PRESETS.a1mini.potencia, // Watts
+  tarifaEnergia: 0.95,                             // R$ por kWh
 };
 
 function loadSettings() {
   try {
-    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    return { ...defaultSettings, ...(saved || {}) };
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    // Compatibilidade com versões antigas, que só guardavam custoImpressoraHora.
+    if (saved.custoImpressoraHora && !saved.precoImpressora) {
+      saved.vidaUtilHoras = saved.vidaUtilHoras || defaultSettings.vidaUtilHoras;
+      saved.precoImpressora = saved.custoImpressoraHora * saved.vidaUtilHoras;
+    }
+    return { ...defaultSettings, ...saved };
   } catch {
     return { ...defaultSettings };
   }
@@ -64,9 +83,20 @@ function getMarketplaceDefaults(mkt, precoEstimado) {
 // --- Preenche o modal de configurações com os valores atuais ---
 function fillSettingsForm() {
   document.getElementById('precoFilamento').value = settings.precoFilamento;
-  document.getElementById('custoImpressoraHora').value = settings.custoImpressoraHora;
+  document.getElementById('printerPreset').value = settings.printerPreset || 'personalizada';
+  document.getElementById('precoImpressora').value = settings.precoImpressora;
+  document.getElementById('vidaUtilHoras').value = settings.vidaUtilHoras;
   document.getElementById('potenciaImpressora').value = settings.potenciaImpressora;
   document.getElementById('tarifaEnergia').value = settings.tarifaEnergia;
+  atualizarCustoHoraCalculado();
+}
+
+// Mostra, em tempo real no modal, quanto dá o custo por hora (preço ÷ vida útil).
+function atualizarCustoHoraCalculado() {
+  const preco = parseFloat(document.getElementById('precoImpressora').value) || 0;
+  const vidaUtil = parseFloat(document.getElementById('vidaUtilHoras').value) || 1;
+  const custoHora = preco / vidaUtil;
+  document.getElementById('custoHoraCalculado').textContent = `Custo por hora (calculado): ${formatarReais(custoHora)}`;
 }
 
 // --- Lê os valores do formulário principal ---
@@ -100,7 +130,8 @@ function readForm() {
 // --- O cálculo em si ---
 function calcular(input, settings) {
   const custoMaterial = input.peso * (settings.precoFilamento / 1000);
-  const custoMaquina = input.tempoHoras * settings.custoImpressoraHora;
+  const custoImpressoraHora = settings.precoImpressora / settings.vidaUtilHoras;
+  const custoMaquina = input.tempoHoras * custoImpressoraHora;
   const custoEnergia = input.tempoHoras * (settings.potenciaImpressora / 1000) * settings.tarifaEnergia;
 
   const custoBase = custoMaterial + custoMaquina + custoEnergia + input.embalagem + input.custosExtras;
@@ -246,7 +277,9 @@ function setupSettingsModal() {
   document.getElementById('closeSettings').addEventListener('click', () => {
     settings = {
       precoFilamento: parseFloat(document.getElementById('precoFilamento').value) || defaultSettings.precoFilamento,
-      custoImpressoraHora: parseFloat(document.getElementById('custoImpressoraHora').value) || defaultSettings.custoImpressoraHora,
+      printerPreset: document.getElementById('printerPreset').value,
+      precoImpressora: parseFloat(document.getElementById('precoImpressora').value) || defaultSettings.precoImpressora,
+      vidaUtilHoras: parseFloat(document.getElementById('vidaUtilHoras').value) || defaultSettings.vidaUtilHoras,
       potenciaImpressora: parseFloat(document.getElementById('potenciaImpressora').value) || defaultSettings.potenciaImpressora,
       tarifaEnergia: parseFloat(document.getElementById('tarifaEnergia').value) || defaultSettings.tarifaEnergia,
     };
@@ -257,6 +290,21 @@ function setupSettingsModal() {
 
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.hidden = true;
+  });
+
+  // Escolher uma impressora da lista preenche os campos sozinho (dá pra editar depois).
+  document.getElementById('printerPreset').addEventListener('change', (e) => {
+    const preset = PRINTER_PRESETS[e.target.value];
+    if (preset) {
+      document.getElementById('precoImpressora').value = preset.preco;
+      document.getElementById('vidaUtilHoras').value = preset.vidaUtilHoras;
+      document.getElementById('potenciaImpressora').value = preset.potencia;
+      atualizarCustoHoraCalculado();
+    }
+  });
+
+  ['precoImpressora', 'vidaUtilHoras'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', atualizarCustoHoraCalculado);
   });
 }
 
@@ -313,3 +361,25 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMarketplace();
   atualizar();
 });
+
+// --- Ponte pro app.js (contas + impressoras salvas, Etapa 3/4) ---
+// Scripts "clássicos" (sem type="module") compartilham o mesmo escopo léxico
+// de topo, então o app.js já enxergaria essas variáveis diretamente — mas
+// deixamos isso explícito em window.Precifica3D pra ficar claro qual é a
+// interface entre os dois arquivos, sem duplicar lógica de cálculo.
+window.Precifica3D = {
+  getSettings() {
+    return settings;
+  },
+  aplicarSettings(parciais) {
+    settings = { ...settings, ...parciais };
+    saveSettings(settings);
+    atualizar();
+  },
+  saveSettings,
+  atualizar,
+  atualizarCustoHoraCalculado,
+  formatarReais,
+  PRINTER_PRESETS,
+  defaultSettings,
+};

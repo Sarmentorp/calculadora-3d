@@ -130,6 +130,82 @@ summary:focus-visible {
 .icon-btn:hover { border-color: var(--input-border); background: var(--surface); }
 .icon-btn svg { width: 20px; height: 20px; }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.user-email {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .user-email { display: none; }
+}
+
+.btn-ghost {
+  min-height: 40px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-input);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.btn-ghost:hover { border-color: var(--input-border); background: var(--surface); }
+
+.btn-ghost.btn-danger { color: var(--danger); }
+.btn-ghost.btn-danger:hover { border-color: var(--danger); }
+
+.btn-secondary {
+  min-height: 40px;
+  background: var(--surface-raised);
+  border: 1px solid var(--input-border);
+  color: var(--text);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-input);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.btn-secondary:hover { border-color: var(--primary); }
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.btn-link:hover { color: var(--primary-hover); text-decoration: underline; }
+
+.error-text { color: var(--danger) !important; }
+
 /* ---------- Navegação de abas ---------- */
 .tabs {
   display: flex;
@@ -456,6 +532,105 @@ details[open] > summary .chevron {
   padding-top: var(--space-2);
 }
 
+/* ---------- Portão de login (abas que exigem conta) ---------- */
+.auth-gate {
+  max-width: 520px;
+  text-align: center;
+}
+
+.auth-gate p {
+  color: var(--muted);
+  margin: 0 0 var(--space-4);
+}
+
+.auth-gate-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Aba Impressoras ---------- */
+.printers-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.printers-toolbar .field-hint { margin: 0; }
+
+.printers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.printer-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+}
+
+.printer-card.is-default { border-color: var(--primary); }
+
+.printer-card h3 {
+  margin: 0 0 var(--space-3);
+  font-size: 16px;
+  font-weight: 600;
+  padding-right: var(--space-4);
+}
+
+.badge-default {
+  display: inline-block;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  margin-bottom: var(--space-2);
+}
+
+.printer-specs {
+  margin: 0 0 var(--space-4);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2) var(--space-3);
+}
+
+.printer-specs div { display: flex; flex-direction: column; }
+
+.printer-specs dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.printer-specs dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.printer-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.printer-actions .btn-secondary,
+.printer-actions .btn-ghost {
+  min-height: 36px;
+  font-size: 12px;
+  padding: 0 var(--space-3);
+}
+
 /* ---------- Rodapé institucional ---------- */
 .site-footer {
   max-width: 1200px;
@@ -514,6 +689,14 @@ details[open] > summary .chevron {
 }
 
 .modal-actions { text-align: right; margin-top: var(--space-2); }
+
+.modal-actions-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
 
 .btn-primary {
   min-height: 44px;

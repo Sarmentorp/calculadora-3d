@@ -5,12 +5,13 @@ Calculadora de custo e preço para impressão 3D — projeto pessoal, inspirado 
 
 ## Status
 
-Etapa 2 de 5 concluída: a calculadora já funciona sozinha, sem precisar de conta.
+Etapa 3 concluída e a parte de Impressoras da Etapa 4 também: agora dá pra
+criar conta, entrar, e salvar sua impressora pra calculadora usar sozinha.
 
 - [x] Etapa 1 — Estrutura do projeto (Node + Express + SQLite)
 - [x] Etapa 2 — Calculadora de custo/preço (sem login)
-- [ ] Etapa 3 — Contas e login (grátis vs. premium)
-- [ ] Etapa 4 — Produtos e Impressoras salvos
+- [x] Etapa 3 — Contas e login (grátis vs. premium)
+- [ ] Etapa 4 — Produtos salvos (Impressoras já está pronta ✅)
 - [ ] Etapa 5 — Encomendas (fila / imprimindo / pronto)
 
 ## Como rodar no seu computador
@@ -46,20 +47,32 @@ Clique no ⚙️ (configurações) pra ajustar os valores de base. Por padrão:
 
 Clique em "Ver como esse preço foi calculado" pra ver essa conta line a line.
 
+## Contas e impressoras salvas
+
+Clique em "Entrar" (canto superior direito) pra criar uma conta grátis ou
+entrar numa existente. Com a conta, a aba **Impressoras** deixa de ficar
+travada: você cadastra suas impressoras (nome, preço, vida útil, potência) e
+marca uma como "em uso" — ela passa a alimentar a calculadora automaticamente
+(as Configurações mostram essa impressora e o cálculo já usa o custo por hora
+dela). No plano grátis dá pra salvar 1 impressora; o plano premium (ainda não
+existe forma de assinar) vai liberar impressoras ilimitadas.
+
 ## Estrutura do projeto
 
 ```
 calculadora-3d/
-├── server.js          # servidor Express (serve a página e a API)
-├── db.js              # configuração do banco SQLite local (usado a partir da Etapa 3)
+├── server.js          # servidor Express (página + API de contas/impressoras)
+├── auth.js            # senha com hash, sessão por cookie, limites do plano grátis
+├── db.js              # configuração do banco SQLite local (users, sessions, printers)
 ├── public/
 │   ├── index.html     # a página da calculadora
-│   ├── styles.css      # visual (tema escuro)
-│   └── calculator.js  # toda a lógica de cálculo, roda no navegador
+│   ├── styles.css     # visual (tema escuro, identidade Precifica3D)
+│   ├── calculator.js  # toda a lógica de cálculo, roda no navegador
+│   └── app.js         # login/cadastro, aba Impressoras, liga a conta à calculadora
 └── data/               # banco de dados local (criado automaticamente, não vai pro Git)
 ```
 
 ## Próximos passos
 
-Quando você validar que a calculadora está calculando do jeito certo pra você,
-seguimos pra Etapa 3 (contas de usuário com login, grátis vs. premium).
+Falta a aba **Produtos** (peças salvas com preço pronto) pra fechar a Etapa 4,
+e depois a Etapa 5 (Encomendas, em estilo kanban).

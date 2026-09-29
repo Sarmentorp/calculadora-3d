@@ -18,7 +18,7 @@ if (!fs.existsSync(dataDir)) {
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
-// Estrutura inicial (users é usada só a partir da Etapa 3)
+// Estrutura inicial (users é usada a partir da Etapa 3)
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,6 +26,26 @@ db.exec(`
     password_hash TEXT NOT NULL,
     is_premium INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS printers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    preco REAL NOT NULL,
+    vida_util_horas REAL NOT NULL,
+    potencia_w REAL NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
 
