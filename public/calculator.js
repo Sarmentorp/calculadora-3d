@@ -28,6 +28,39 @@ function saveSettings(settings) {
 
 let settings = loadSettings();
 
+// --- Taxas de marketplace (Mercado Livre, Shopee, TikTok Shop) ---
+// Pesquisado em setembro/2026. São valores de referência: a comissão real
+// varia por categoria (Mercado Livre) ou muda com o tempo, então os campos
+// ficam editáveis — confirme o número exato no painel de vendedor de cada
+// plataforma antes de confiar 100% no preço sugerido.
+function getMarketplaceDefaults(mkt, precoEstimado) {
+  switch (mkt) {
+    case 'ml_classico':
+      return {
+        comissaoPct: 12,
+        taxaFixa: precoEstimado < 79 ? 6.5 : 0,
+        hint: 'Mercado Livre Clássico cobra entre 10% e 19% conforme a categoria do anúncio. Abaixo de R$ 79, cobra também uma taxa fixa de ~R$ 6 a R$ 7; a partir de R$ 79 não tem taxa fixa, mas o frete grátis passa a ser obrigação do vendedor. Confira a % exata da sua categoria no painel do Mercado Livre.',
+      };
+    case 'ml_premium':
+      return {
+        comissaoPct: 17,
+        taxaFixa: precoEstimado < 79 ? 6.5 : 0,
+        hint: 'Mercado Livre Premium cobra entre 15% e 19% (permite parcelar em até 12x pro comprador). Mesma regra de taxa fixa/frete grátis do Clássico a partir de R$ 79.',
+      };
+    case 'shopee':
+      if (precoEstimado < 80) return { comissaoPct: 20, taxaFixa: 4, hint: 'Shopee: peças até R$ 79,99 pagam 20% + R$ 4,00 fixo por item.' };
+      if (precoEstimado < 100) return { comissaoPct: 14, taxaFixa: 16, hint: 'Shopee: peças de R$ 80 a R$ 99,99 pagam 14% + R$ 16,00 fixo por item.' };
+      if (precoEstimado < 200) return { comissaoPct: 14, taxaFixa: 20, hint: 'Shopee: peças de R$ 100 a R$ 199,99 pagam 14% + R$ 20,00 fixo por item.' };
+      if (precoEstimado < 500) return { comissaoPct: 14, taxaFixa: 26, hint: 'Shopee: peças de R$ 200 a R$ 499,99 pagam 14% + R$ 26,00 fixo por item.' };
+      return { comissaoPct: 14, taxaFixa: 28, hint: 'Shopee: peças a partir de R$ 500 pagam 14% + R$ 28,00 fixo por item.' };
+    case 'tiktok':
+      if (precoEstimado < 50) return { comissaoPct: 10, taxaFixa: 4, hint: 'TikTok Shop: peças abaixo de R$ 50 pagam 10% + R$ 4,00 fixo por item.' };
+      return { comissaoPct: 6, taxaFixa: 6, hint: 'TikTok Shop: peças a partir de R$ 50 pagam 6% + R$ 6,00 fixo por item.' };
+    default:
+      return { comissaoPct: 0, taxaFixa: 0, hint: '' };
+  }
+}
+
 // --- Preenche o modal de configurações com os valores atuais ---
 function fillSettingsForm() {
   document.getElementById('precoFilamento').value = settings.precoFilamento;
@@ -46,6 +79,9 @@ function readForm() {
   const taxaFalha = parseFloat(document.getElementById('taxaFalha').value) || 0;
   const custosExtras = parseFloat(document.getElementById('custosExtras').value) || 0;
   const precoMarketeiro = document.getElementById('precoMarketeiro').checked;
+  const marketplace = document.getElementById('marketplace').value;
+  const comissaoPct = parseFloat(document.getElementById('comissaoPct').value) || 0;
+  const taxaFixaMarketplace = parseFloat(document.getElementById('taxaFixaMarketplace').value) || 0;
 
   return {
     peso,
@@ -55,6 +91,9 @@ function readForm() {
     taxaFalha,
     custosExtras,
     precoMarketeiro,
+    marketplace,
+    comissaoPct,
+    taxaFixaMarketplace,
   };
 }
 
@@ -70,10 +109,31 @@ function calcular(input, settings) {
   const fator_falha = 1 - Math.min(input.taxaFalha, 90) / 100;
   const custoComFalha = fator_falha > 0 ? custoBase / fator_falha : custoBase;
 
-  let precoFinal = custoComFalha * (1 + input.margem / 100);
+  // Preço de venda direta (sem marketplace): o que você cobraria vendendo
+  // direto pro cliente, sem nenhuma plataforma tirando comissão.
+  const precoDireto = custoComFalha * (1 + input.margem / 100);
 
-  if (input.precoMarketeiro) {
-    precoFinal = arredondarMarketeiro(precoFinal);
+  const temMarketplace = input.marketplace && input.marketplace !== 'nenhum';
+
+  let precoAnuncio = null;
+  let recebeLiquido = precoDireto;
+  let precoFinal;
+
+  if (temMarketplace) {
+    // Conta reversa: pra você receber líquido o mesmo precoDireto depois da
+    // comissão + taxa fixa da plataforma, o preço anunciado precisa ser maior.
+    const comissaoFrac = Math.min(input.comissaoPct, 90) / 100;
+    precoAnuncio = (precoDireto + input.taxaFixaMarketplace) / (1 - comissaoFrac);
+
+    if (input.precoMarketeiro) {
+      precoAnuncio = arredondarMarketeiro(precoAnuncio);
+    }
+
+    recebeLiquido = precoAnuncio * (1 - comissaoFrac) - input.taxaFixaMarketplace;
+    precoFinal = precoAnuncio;
+  } else {
+    precoFinal = input.precoMarketeiro ? arredondarMarketeiro(precoDireto) : precoDireto;
+    recebeLiquido = precoFinal;
   }
 
   return {
@@ -82,6 +142,10 @@ function calcular(input, settings) {
     custoEnergia,
     custoBase,
     custoComFalha,
+    precoDireto,
+    temMarketplace,
+    precoAnuncio,
+    recebeLiquido,
     precoFinal,
   };
 }
@@ -100,8 +164,10 @@ function formatarReais(valor) {
 // --- Atualiza a tela ---
 function atualizar() {
   const input = readForm();
+  const resultLabelEl = document.getElementById('resultLabel');
   const resultadoEl = document.getElementById('resultado');
   const hintEl = document.getElementById('resultHint');
+  const resultSubEl = document.getElementById('resultSub');
   const breakdownEl = document.getElementById('breakdown');
   const breakdownBody = document.getElementById('breakdownBody');
 
@@ -109,24 +175,44 @@ function atualizar() {
     resultadoEl.textContent = 'R$ --,--';
     hintEl.textContent = 'Preencha o peso e o tempo de impressão para ver o resultado.';
     breakdownEl.hidden = true;
+    resultSubEl.hidden = true;
     return;
   }
 
   const r = calcular(input, settings);
 
+  resultLabelEl.textContent = r.temMarketplace ? 'PREÇO DO ANÚNCIO' : 'PREÇO SUGERIDO';
   resultadoEl.textContent = formatarReais(r.precoFinal);
   hintEl.textContent = `Para ${input.peso} g e ${input.tempoHoras.toFixed(2)} h de impressão.`;
 
+  if (r.temMarketplace) {
+    resultSubEl.hidden = false;
+    resultSubEl.textContent = `Depois da comissão e da taxa fixa da plataforma, você recebe ${formatarReais(r.recebeLiquido)} líquido.`;
+  } else {
+    resultSubEl.hidden = true;
+  }
+
   breakdownEl.hidden = false;
-  breakdownBody.innerHTML = `
+  let linhas = `
     <div class="line"><span>Material (filamento)</span><span>${formatarReais(r.custoMaterial)}</span></div>
     <div class="line"><span>Máquina (depreciação)</span><span>${formatarReais(r.custoMaquina)}</span></div>
     <div class="line"><span>Energia elétrica</span><span>${formatarReais(r.custoEnergia)}</span></div>
     <div class="line"><span>Embalagem</span><span>${formatarReais(input.embalagem)}</span></div>
     <div class="line"><span>Custos extras</span><span>${formatarReais(input.custosExtras)}</span></div>
     <div class="line total"><span>Custo total (com taxa de falha)</span><span>${formatarReais(r.custoComFalha)}</span></div>
-    <div class="line total"><span>Preço sugerido (+${input.margem}%)</span><span>${formatarReais(r.precoFinal)}</span></div>
+    <div class="line total"><span>Preço de venda direta (+${input.margem}%)</span><span>${formatarReais(r.precoDireto)}</span></div>
   `;
+
+  if (r.temMarketplace) {
+    linhas += `
+    <div class="line"><span>Comissão da plataforma (${input.comissaoPct}%)</span><span>- ${formatarReais(r.precoAnuncio * (input.comissaoPct / 100))}</span></div>
+    <div class="line"><span>Taxa fixa por item</span><span>- ${formatarReais(input.taxaFixaMarketplace)}</span></div>
+    <div class="line total"><span>Preço do anúncio</span><span>${formatarReais(r.precoAnuncio)}</span></div>
+    <div class="line total"><span>Você recebe líquido</span><span>${formatarReais(r.recebeLiquido)}</span></div>
+    `;
+  }
+
+  breakdownBody.innerHTML = linhas;
 }
 
 // --- Botões de margem pré-definida ---
@@ -174,6 +260,44 @@ function setupSettingsModal() {
   });
 }
 
+// --- Marketplace (Mercado Livre / Shopee / TikTok Shop) ---
+function setupMarketplace() {
+  const select = document.getElementById('marketplace');
+  const fields = document.getElementById('marketplaceFields');
+  const comissaoInput = document.getElementById('comissaoPct');
+  const taxaFixaInput = document.getElementById('taxaFixaMarketplace');
+  const hintEl = document.getElementById('marketplaceHint');
+
+  select.addEventListener('change', () => {
+    if (select.value === 'nenhum') {
+      fields.hidden = true;
+      atualizar();
+      return;
+    }
+
+    fields.hidden = false;
+
+    // Usa o preço de venda direta atual (se já der pra calcular) só pra
+    // escolher a faixa de taxa certa (Shopee e TikTok Shop têm faixas por preço).
+    const input = readForm();
+    let precoEstimado = 0;
+    if (input.peso > 0 && input.tempoHoras > 0) {
+      const r = calcular({ ...input, marketplace: 'nenhum' }, settings);
+      precoEstimado = r.precoDireto;
+    }
+
+    const defaults = getMarketplaceDefaults(select.value, precoEstimado);
+    comissaoInput.value = defaults.comissaoPct;
+    taxaFixaInput.value = defaults.taxaFixa;
+    hintEl.textContent = defaults.hint;
+
+    atualizar();
+  });
+
+  comissaoInput.addEventListener('input', atualizar);
+  taxaFixaInput.addEventListener('input', atualizar);
+}
+
 // --- Liga tudo ---
 function setupInputs() {
   ['peso', 'horas', 'minutos', 'embalagem', 'taxaFalha', 'custosExtras'].forEach((id) => {
@@ -186,5 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupChips();
   setupInputs();
   setupSettingsModal();
+  setupMarketplace();
   atualizar();
 });
