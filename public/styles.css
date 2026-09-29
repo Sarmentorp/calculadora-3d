@@ -756,3 +756,137 @@ details[open] > summary .chevron {
 }
 
 .btn-primary:hover { background: var(--primary-hover); }
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-wide { max-width: 560px; }
+
+.field-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.field-row .field { flex: 1; }
+
+@media (max-width: 380px) {
+  .field-row { flex-direction: column; gap: 0; }
+}
+
+/* ---------- Aba Encomendas (quadro kanban) ---------- */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(240px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kanban-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kanban-column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-1);
+}
+
+.kanban-column-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+.kanban-column[data-status="imprimindo"] .kanban-column-header h2 { color: var(--info); }
+.kanban-column[data-status="pronto"] .kanban-column-header h2 { color: var(--warning); }
+.kanban-column[data-status="entregue"] .kanban-column-header h2 { color: var(--success); }
+
+.kanban-count {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 32px;
+}
+
+.order-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: var(--space-3);
+  font-size: 13px;
+}
+
+.order-card h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.order-card .order-item {
+  color: var(--muted);
+  margin: 0 0 var(--space-2);
+}
+
+.order-card .order-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  margin: 0 0 var(--space-3);
+}
+
+.order-card .order-preco {
+  color: var(--primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-card .order-obs {
+  color: var(--muted);
+  font-style: italic;
+  margin: 0 0 var(--space-3);
+}
+
+.order-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.order-card-actions .btn-secondary,
+.order-card-actions .btn-ghost {
+  min-height: 30px;
+  font-size: 11px;
+  padding: 0 var(--space-2);
+}

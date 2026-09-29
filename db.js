@@ -66,6 +66,23 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    cliente_nome TEXT NOT NULL,
+    cliente_contato TEXT NOT NULL DEFAULT '',
+    produto_id INTEGER,
+    item_nome TEXT NOT NULL,
+    quantidade REAL NOT NULL DEFAULT 1,
+    preco REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'fila',
+    data_entrega TEXT,
+    observacoes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (produto_id) REFERENCES products(id) ON DELETE SET NULL
+  );
 `);
 
 module.exports = db;

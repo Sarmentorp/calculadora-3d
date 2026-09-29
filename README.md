@@ -5,14 +5,14 @@ Calculadora de custo e preço para impressão 3D — projeto pessoal, inspirado 
 
 ## Status
 
-Etapa 4 concluída: com uma conta, dá pra salvar impressoras e produtos, e os
-dois já alimentam a calculadora sozinhos.
+Etapa 5 concluída: agora dá pra acompanhar as encomendas dos clientes num
+quadro, do pedido até a entrega.
 
 - [x] Etapa 1 — Estrutura do projeto (Node + Express + SQLite)
 - [x] Etapa 2 — Calculadora de custo/preço (sem login)
 - [x] Etapa 3 — Contas e login (grátis vs. premium)
 - [x] Etapa 4 — Produtos e Impressoras salvos
-- [ ] Etapa 5 — Encomendas (fila / imprimindo / pronto)
+- [x] Etapa 5 — Encomendas (Fila / Imprimindo / Pronto / Entregue)
 
 ## Como rodar no seu computador
 
@@ -66,24 +66,40 @@ entrar numa existente. Com a conta, duas abas deixam de ficar travadas:
   botão vira "Atualizar produto" (ou "Salvar como novo produto" se você quiser
   duplicar em vez de sobrescrever). Limite do plano grátis: 5 produtos.
 
-O plano premium (ainda não existe forma de assinar) vai liberar impressoras e
-produtos ilimitados.
+### Encomendas
+
+Na aba **Encomendas**, clique em "+ Nova encomenda" pra registrar um pedido:
+nome do cliente, contato (opcional), o item (pode escolher um produto salvo —
+o preço vem preenchido sozinho — ou digitar um item avulso), quantidade,
+preço, data de entrega (opcional) e observações. A encomenda entra na coluna
+**Fila**, e cada card tem um botão pra avançar pra próxima coluna
+(**Imprimindo** → **Pronto** → **Entregue**) ou voltar uma, se precisar
+corrigir. Diferente da aba Produtos, o preço da encomenda fica congelado (é
+o valor já combinado com o cliente) — não muda sozinho se você ajustar o
+preço do filamento depois. Limite do plano grátis: 5 encomendas ativas ao
+mesmo tempo (as já marcadas como Entregue não contam).
+
+O plano premium (ainda não existe forma de assinar) vai liberar impressoras,
+produtos e encomendas ilimitados.
 
 ## Estrutura do projeto
 
 ```
 calculadora-3d/
-├── server.js          # servidor Express (página + API de contas/impressoras/produtos)
+├── server.js          # servidor Express (página + API de contas/impressoras/produtos/encomendas)
 ├── auth.js            # senha com hash, sessão por cookie, limites do plano grátis
-├── db.js              # configuração do banco SQLite local (users, sessions, printers, products)
+├── db.js              # configuração do banco SQLite local (users, sessions, printers, products, orders)
 ├── public/
 │   ├── index.html     # a página da calculadora
 │   ├── styles.css     # visual (tema escuro, identidade Precifica3D)
 │   ├── calculator.js  # toda a lógica de cálculo, roda no navegador
-│   └── app.js         # login/cadastro, abas Impressoras e Produtos, liga a conta à calculadora
+│   └── app.js         # login/cadastro, abas Impressoras, Produtos e Encomendas, liga a conta à calculadora
 └── data/               # banco de dados local (criado automaticamente, não vai pro Git)
 ```
 
 ## Próximos passos
 
-Falta a Etapa 5 (Encomendas, em estilo kanban: fila / imprimindo / pronto).
+Nenhum próximo passo planejado por enquanto — todas as etapas do plano
+original (1 a 5) estão concluídas. Ideias em aberto: plano premium de
+verdade (hoje os limites do plano grátis existem mas não há como assinar),
+e um domínio próprio (.com.br) pra não depender do endereço do Render.

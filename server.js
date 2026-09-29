@@ -20,7 +20,7 @@ app.use(express.static('public'));
 app.use(auth.identificarUsuario);
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, etapa: 4 });
+  res.json({ ok: true, etapa: 5 });
 });
 
 // ============================================================
@@ -284,6 +284,139 @@ app.delete('/api/produtos/:id', auth.exigirLogin, (req, res) => {
   if (!produto) return res.status(404).json({ error: 'nao_encontrada', message: 'Produto não encontrado.' });
 
   db.prepare('DELETE FROM products WHERE id = ?').run(produto.id);
+  res.json({ ok: true });
+});
+
+// ============================================================
+// Encomendas (Etapa 5)
+// ============================================================
+// Quadro em estilo kanban: cada encomenda tem um status (fila, imprimindo,
+// pronto, entregue). Ela pode citar um produto salvo, mas o nome do item e
+// o preço ficam congelados na encomenda — diferente da aba Produtos, aqui
+// o valor já foi combinado com o cliente e não deve mudar sozinho se você
+// ajustar o preço do filamento depois.
+const STATUS_ENCOMENDA = ['fila', 'imprimindo', 'pronto', 'entregue'];
+
+function validarEncomenda(body) {
+  const clienteNome = String((body && body.clienteNome) || '').trim();
+  const clienteContato = String((body && body.clienteContato) || '').trim();
+  const itemNome = String((body && body.itemNome) || '').trim();
+  const produtoIdRaw = body && body.produtoId;
+  const produtoId = produtoIdRaw ? parseInt(produtoIdRaw, 10) : null;
+  const quantidade = parseFloat(body && body.quantidade) || 1;
+  const preco = parseFloat(body && body.preco);
+  const dataEntrega = (body && body.dataEntrega) ? String(body.dataEntrega).trim() : '';
+  const observacoes = (body && body.observacoes) ? String(body.observacoes).trim() : '';
+
+  if (!clienteNome) return { erro: 'Informe o nome do cliente.' };
+  if (clienteNome.length > 80) return { erro: 'O nome do cliente está longo demais.' };
+  if (clienteContato.length > 80) return { erro: 'O contato está longo demais.' };
+  if (!itemNome) return { erro: 'Descreva o item da encomenda.' };
+  if (itemNome.length > 120) return { erro: 'A descrição do item está longa demais.' };
+  if (!(quantidade > 0)) return { erro: 'A quantidade precisa ser maior que zero.' };
+  if (!(preco >= 0)) return { erro: 'Informe o preço da encomenda.' };
+  if (observacoes.length > 500) return { erro: 'As observações estão longas demais.' };
+
+  return {
+    valores: {
+      clienteNome, clienteContato, produtoId: produtoId && produtoId > 0 ? produtoId : null,
+      itemNome, quantidade, preco, dataEntrega, observacoes,
+    },
+  };
+}
+
+app.get('/api/encomendas', auth.exigirLogin, (req, res) => {
+  const encomendas = db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at ASC').all(req.user.id);
+  res.json({
+    encomendas,
+    limiteGratis: auth.LIMITES_GRATIS.encomendas,
+    isPremium: !!req.user.is_premium,
+  });
+});
+
+app.post('/api/encomendas', auth.exigirLogin, (req, res) => {
+  if (!req.user.is_premium) {
+    const ativas = db
+      .prepare(`SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status != 'entregue'`)
+      .get(req.user.id).n;
+    if (ativas >= auth.LIMITES_GRATIS.encomendas) {
+      const limite = auth.LIMITES_GRATIS.encomendas;
+      const substantivo = limite === 1 ? 'encomenda ativa' : 'encomendas ativas';
+      return res.status(403).json({
+        error: 'limite_gratis',
+        message: `No plano grátis você pode ter até ${limite} ${substantivo} ao mesmo tempo (as já entregues não contam). Marque uma como entregue ou exclua uma, ou espere o plano premium.`,
+      });
+    }
+  }
+
+  const { erro, valores: v } = validarEncomenda(req.body);
+  if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
+
+  if (v.produtoId) {
+    const produto = db.prepare('SELECT id FROM products WHERE id = ? AND user_id = ?').get(v.produtoId, req.user.id);
+    if (!produto) v.produtoId = null;
+  }
+
+  const info = db
+    .prepare(
+      `INSERT INTO orders
+       (user_id, cliente_nome, cliente_contato, produto_id, item_nome, quantidade, preco, status, data_entrega, observacoes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'fila', ?, ?)`
+    )
+    .run(
+      req.user.id, v.clienteNome, v.clienteContato, v.produtoId, v.itemNome, v.quantidade, v.preco,
+      v.dataEntrega, v.observacoes
+    );
+
+  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ?').get(info.lastInsertRowid);
+  res.status(201).json({ encomenda });
+});
+
+app.put('/api/encomendas/:id', auth.exigirLogin, (req, res) => {
+  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!encomenda) return res.status(404).json({ error: 'nao_encontrada', message: 'Encomenda não encontrada.' });
+
+  const { erro, valores: v } = validarEncomenda(req.body);
+  if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
+
+  if (v.produtoId) {
+    const produto = db.prepare('SELECT id FROM products WHERE id = ? AND user_id = ?').get(v.produtoId, req.user.id);
+    if (!produto) v.produtoId = null;
+  }
+
+  db.prepare(
+    `UPDATE orders SET
+       cliente_nome = ?, cliente_contato = ?, produto_id = ?, item_nome = ?, quantidade = ?, preco = ?,
+       data_entrega = ?, observacoes = ?
+     WHERE id = ?`
+  ).run(
+    v.clienteNome, v.clienteContato, v.produtoId, v.itemNome, v.quantidade, v.preco,
+    v.dataEntrega, v.observacoes, encomenda.id
+  );
+
+  const atualizada = db.prepare('SELECT * FROM orders WHERE id = ?').get(encomenda.id);
+  res.json({ encomenda: atualizada });
+});
+
+app.post('/api/encomendas/:id/status', auth.exigirLogin, (req, res) => {
+  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!encomenda) return res.status(404).json({ error: 'nao_encontrada', message: 'Encomenda não encontrada.' });
+
+  const status = String((req.body && req.body.status) || '');
+  if (!STATUS_ENCOMENDA.includes(status)) {
+    return res.status(400).json({ error: 'status_invalido', message: 'Status inválido.' });
+  }
+
+  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, encomenda.id);
+  const atualizada = db.prepare('SELECT * FROM orders WHERE id = ?').get(encomenda.id);
+  res.json({ encomenda: atualizada });
+});
+
+app.delete('/api/encomendas/:id', auth.exigirLogin, (req, res) => {
+  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!encomenda) return res.status(404).json({ error: 'nao_encontrada', message: 'Encomenda não encontrada.' });
+
+  db.prepare('DELETE FROM orders WHERE id = ?').run(encomenda.id);
   res.json({ ok: true });
 });
 

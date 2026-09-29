@@ -15,6 +15,7 @@ const SESSION_DIAS = 30;
 const LIMITES_GRATIS = {
   impressoras: 2,
   produtos: 5,
+  encomendas: 5,
 };
 
 function limparSessoesExpiradas() {

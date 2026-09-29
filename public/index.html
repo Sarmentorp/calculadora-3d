@@ -57,7 +57,7 @@
       </svg>
       Impressoras
     </button>
-    <button class="tab disabled" title="Chega na Etapa 5">
+    <button class="tab" data-tab="encomendas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
       </svg>
@@ -246,6 +246,58 @@
       </div>
     </section>
 
+    <section id="view-encomendas" class="view" hidden>
+      <h1>Encomendas</h1>
+      <p class="subtitle">Acompanhe os pedidos dos seus clientes, do pedido até a entrega.</p>
+
+      <div id="encomendasLoggedOut" class="card auth-gate" hidden>
+        <p>Crie uma conta grátis pra organizar suas encomendas num quadro, do pedido até a entrega.</p>
+        <div class="auth-gate-actions">
+          <button class="btn-primary" id="encomendasEntrarBtn">Entrar</button>
+          <button class="btn-secondary" id="encomendasCadastrarBtn">Criar conta grátis</button>
+        </div>
+      </div>
+
+      <div id="encomendasLoggedIn" hidden>
+        <div class="printers-toolbar">
+          <button class="btn-primary" id="novaEncomendaBtn">+ Nova encomenda</button>
+          <p class="field-hint" id="encomendasLimitHint" hidden></p>
+        </div>
+        <p class="field-hint error-text" id="encomendasError" hidden></p>
+
+        <div class="kanban-board">
+          <div class="kanban-column" data-status="fila">
+            <div class="kanban-column-header">
+              <h2>Fila</h2>
+              <span class="kanban-count" id="countFila">0</span>
+            </div>
+            <div class="kanban-cards" id="cardsFila"></div>
+          </div>
+          <div class="kanban-column" data-status="imprimindo">
+            <div class="kanban-column-header">
+              <h2>Imprimindo</h2>
+              <span class="kanban-count" id="countImprimindo">0</span>
+            </div>
+            <div class="kanban-cards" id="cardsImprimindo"></div>
+          </div>
+          <div class="kanban-column" data-status="pronto">
+            <div class="kanban-column-header">
+              <h2>Pronto</h2>
+              <span class="kanban-count" id="countPronto">0</span>
+            </div>
+            <div class="kanban-cards" id="cardsPronto"></div>
+          </div>
+          <div class="kanban-column" data-status="entregue">
+            <div class="kanban-column-header">
+              <h2>Entregue</h2>
+              <span class="kanban-count" id="countEntregue">0</span>
+            </div>
+            <div class="kanban-cards" id="cardsEntregue"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-footer">
@@ -416,6 +468,83 @@
         <div class="modal-actions modal-actions-split">
           <button type="button" class="btn-ghost" id="productSaveCancelBtn">Cancelar</button>
           <button type="submit" class="btn-primary" id="productSaveSubmitBtn">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de nova / editar encomenda -->
+  <div class="modal-backdrop" id="orderModal" hidden>
+    <div class="modal modal-wide">
+      <h2 id="orderModalTitle">Nova encomenda</h2>
+
+      <form id="orderForm">
+        <input type="hidden" id="orderId">
+
+        <label class="field">
+          <span>Nome do cliente</span>
+          <div class="input-suffix">
+            <input type="text" id="orderClienteNome" required maxlength="80" placeholder="Ex: Maria Silva">
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Contato <em>(opcional)</em></span>
+          <div class="input-suffix">
+            <input type="text" id="orderClienteContato" maxlength="80" placeholder="WhatsApp, Instagram...">
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Produto salvo <em>(opcional)</em></span>
+          <select id="orderProdutoSelect" class="select-field">
+            <option value="">Item avulso (sem produto salvo)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Descrição do item</span>
+          <div class="input-suffix">
+            <input type="text" id="orderItemNome" required maxlength="120" placeholder="Ex: Chaveiro Pokébola">
+          </div>
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Quantidade</span>
+            <div class="input-suffix">
+              <input type="number" id="orderQuantidade" min="1" step="1" value="1">
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Preço total</span>
+            <div class="input-suffix">
+              <span class="prefix">R$</span>
+              <input type="number" id="orderPreco" min="0" step="0.01" required>
+            </div>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Data de entrega <em>(opcional)</em></span>
+          <div class="input-suffix">
+            <input type="date" id="orderDataEntrega">
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Observações <em>(opcional)</em></span>
+          <div class="input-suffix">
+            <input type="text" id="orderObservacoes" maxlength="500" placeholder="Cor, detalhes do pedido...">
+          </div>
+        </label>
+
+        <p class="field-hint error-text" id="orderFormError" hidden></p>
+
+        <div class="modal-actions modal-actions-split">
+          <button type="button" class="btn-ghost" id="orderCancelBtn">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
         </div>
       </form>
     </div>

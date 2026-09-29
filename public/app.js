@@ -17,11 +17,23 @@ let editingProductId = null;
 let editingProductNome = '';
 let pendingSaveAsNew = false;
 
+let orders = [];
+let encomendasIsPremium = false;
+let encomendasLimiteGratis = 5;
+
 const MARKETPLACE_LABELS = {
   ml_classico: 'Mercado Livre — Clássico',
   ml_premium: 'Mercado Livre — Premium',
   shopee: 'Shopee',
   tiktok: 'TikTok Shop',
+};
+
+const STATUS_ORDER = ['fila', 'imprimindo', 'pronto', 'entregue'];
+const STATUS_LABELS = {
+  fila: 'Fila',
+  imprimindo: 'Imprimindo',
+  pronto: 'Pronto',
+  entregue: 'Entregue',
 };
 
 function escapeHtml(str) {
@@ -72,6 +84,7 @@ function switchTab(tab) {
   });
   if (tab === 'impressoras') renderImpressorasView();
   if (tab === 'produtos') renderProdutosView();
+  if (tab === 'encomendas') renderEncomendasView();
 }
 
 // ============================================================
@@ -131,9 +144,10 @@ async function handleAuthSubmit(e) {
     currentUser = data.user;
     closeAuthModal();
     renderUserArea();
-    await Promise.all([loadPrinters(), loadProducts()]);
+    await Promise.all([loadPrinters(), loadProducts(), loadOrders()]);
     if (!document.getElementById('view-impressoras').hidden) renderImpressorasView();
     if (!document.getElementById('view-produtos').hidden) renderProdutosView();
+    if (!document.getElementById('view-encomendas').hidden) renderEncomendasView();
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.hidden = false;
@@ -149,11 +163,13 @@ async function logout() {
   currentUser = null;
   printers = [];
   products = [];
+  orders = [];
   cancelarEdicaoProduto();
   renderUserArea();
   updatePrinterPresetSelect();
   if (!document.getElementById('view-impressoras').hidden) renderImpressorasView();
   if (!document.getElementById('view-produtos').hidden) renderProdutosView();
+  if (!document.getElementById('view-encomendas').hidden) renderEncomendasView();
 }
 
 function setupAuthModal() {
@@ -603,6 +619,222 @@ async function loadProducts() {
 }
 
 // ============================================================
+// Aba Encomendas
+// ============================================================
+function renderEncomendasView() {
+  const loggedOut = document.getElementById('encomendasLoggedOut');
+  const loggedIn = document.getElementById('encomendasLoggedIn');
+
+  if (!currentUser) {
+    loggedOut.hidden = false;
+    loggedIn.hidden = true;
+    return;
+  }
+
+  loggedOut.hidden = true;
+  loggedIn.hidden = false;
+  renderOrdersBoard();
+}
+
+function formatarDataEntrega(iso) {
+  if (!iso) return '';
+  const partes = iso.split('-');
+  if (partes.length !== 3) return iso;
+  const [ano, mes, dia] = partes;
+  return `${dia}/${mes}/${ano}`;
+}
+
+function orderCardHtml(o) {
+  const { formatarReais } = window.Precifica3D;
+  const idx = STATUS_ORDER.indexOf(o.status);
+  const proximo = STATUS_ORDER[idx + 1];
+  const anterior = STATUS_ORDER[idx - 1];
+  const qtd = Number(o.quantidade);
+
+  return `
+    <div class="order-card">
+      <h3>${escapeHtml(o.cliente_nome)}</h3>
+      <p class="order-item">${qtd > 1 ? `${qtd}x ` : ''}${escapeHtml(o.item_nome)}</p>
+      <div class="order-meta">
+        ${o.cliente_contato ? `<span>${escapeHtml(o.cliente_contato)}</span>` : ''}
+        ${o.data_entrega ? `<span>Entrega: ${formatarDataEntrega(o.data_entrega)}</span>` : ''}
+        <span class="order-preco">${formatarReais(o.preco)}</span>
+      </div>
+      ${o.observacoes ? `<p class="order-obs">${escapeHtml(o.observacoes)}</p>` : ''}
+      <div class="order-card-actions">
+        ${anterior ? `<button class="btn-ghost" data-mover="${o.id}" data-status="${anterior}">← ${STATUS_LABELS[anterior]}</button>` : ''}
+        ${proximo ? `<button class="btn-secondary" data-mover="${o.id}" data-status="${proximo}">${STATUS_LABELS[proximo]} →</button>` : ''}
+        <button class="btn-ghost" data-editar="${o.id}">Editar</button>
+        <button class="btn-ghost btn-danger" data-excluir="${o.id}">Excluir</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderOrdersBoard() {
+  const board = document.querySelector('.kanban-board');
+  const errorEl = document.getElementById('encomendasError');
+  errorEl.hidden = true;
+
+  STATUS_ORDER.forEach((status) => {
+    const doStatus = orders.filter((o) => o.status === status);
+    const sufixo = status.charAt(0).toUpperCase() + status.slice(1);
+    document.getElementById(`count${sufixo}`).textContent = doStatus.length;
+    document.getElementById(`cards${sufixo}`).innerHTML = doStatus.length
+      ? doStatus.map(orderCardHtml).join('')
+      : '<p class="field-hint">Nenhuma encomenda aqui.</p>';
+  });
+
+  board.querySelectorAll('[data-mover]').forEach((btn) => {
+    btn.addEventListener('click', () => moverEncomenda(Number(btn.dataset.mover), btn.dataset.status));
+  });
+  board.querySelectorAll('[data-editar]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const o = orders.find((oo) => oo.id === Number(btn.dataset.editar));
+      if (o) openOrderModal(o);
+    });
+  });
+  board.querySelectorAll('[data-excluir]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteOrder(Number(btn.dataset.excluir)));
+  });
+
+  const ativas = orders.filter((o) => o.status !== 'entregue').length;
+  const hint = document.getElementById('encomendasLimitHint');
+  const novaBtn = document.getElementById('novaEncomendaBtn');
+  if (!encomendasIsPremium && ativas >= encomendasLimiteGratis) {
+    const substantivo = encomendasLimiteGratis === 1 ? 'encomenda ativa' : 'encomendas ativas';
+    hint.hidden = false;
+    hint.textContent = `Plano grátis: ${ativas}/${encomendasLimiteGratis} ${substantivo}. Marque uma como entregue ou exclua uma pra abrir espaço, ou espere o plano premium.`;
+    novaBtn.disabled = true;
+  } else {
+    hint.hidden = true;
+    novaBtn.disabled = false;
+  }
+}
+
+function populateOrderProdutoSelect(selecionado) {
+  const select = document.getElementById('orderProdutoSelect');
+  const opts = ['<option value="">Item avulso (sem produto salvo)</option>'].concat(
+    products.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`)
+  );
+  select.innerHTML = opts.join('');
+  select.value = selecionado || '';
+}
+
+function handleOrderProdutoChange() {
+  const id = Number(document.getElementById('orderProdutoSelect').value);
+  if (!id) return;
+  const p = products.find((pp) => pp.id === id);
+  if (!p) return;
+  const r = calcularProduto(p);
+  const qtd = parseFloat(document.getElementById('orderQuantidade').value) || 1;
+  document.getElementById('orderItemNome').value = p.nome;
+  document.getElementById('orderPreco').value = (r.precoFinal * qtd).toFixed(2);
+}
+
+function openOrderModal(order) {
+  document.getElementById('orderModalTitle').textContent = order ? 'Editar encomenda' : 'Nova encomenda';
+  document.getElementById('orderId').value = order ? order.id : '';
+  document.getElementById('orderClienteNome').value = order ? order.cliente_nome : '';
+  document.getElementById('orderClienteContato').value = order ? order.cliente_contato : '';
+  populateOrderProdutoSelect(order && order.produto_id ? order.produto_id : '');
+  document.getElementById('orderItemNome').value = order ? order.item_nome : '';
+  document.getElementById('orderQuantidade').value = order ? order.quantidade : 1;
+  document.getElementById('orderPreco').value = order ? order.preco : '';
+  document.getElementById('orderDataEntrega').value = order ? (order.data_entrega || '') : '';
+  document.getElementById('orderObservacoes').value = order ? order.observacoes : '';
+  document.getElementById('orderFormError').hidden = true;
+  document.getElementById('orderModal').hidden = false;
+  document.getElementById('orderClienteNome').focus();
+}
+
+function closeOrderModal() {
+  document.getElementById('orderModal').hidden = true;
+}
+
+async function handleOrderSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('orderId').value;
+  const payload = {
+    clienteNome: document.getElementById('orderClienteNome').value.trim(),
+    clienteContato: document.getElementById('orderClienteContato').value.trim(),
+    produtoId: document.getElementById('orderProdutoSelect').value || null,
+    itemNome: document.getElementById('orderItemNome').value.trim(),
+    quantidade: parseFloat(document.getElementById('orderQuantidade').value) || 1,
+    preco: parseFloat(document.getElementById('orderPreco').value),
+    dataEntrega: document.getElementById('orderDataEntrega').value || null,
+    observacoes: document.getElementById('orderObservacoes').value.trim(),
+  };
+  const errorEl = document.getElementById('orderFormError');
+  errorEl.hidden = true;
+
+  try {
+    if (id) {
+      await apiFetch(`/api/encomendas/${id}`, { method: 'PUT', body: payload });
+    } else {
+      await apiFetch('/api/encomendas', { method: 'POST', body: payload });
+    }
+    closeOrderModal();
+    await loadOrders();
+    renderOrdersBoard();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+  }
+}
+
+async function moverEncomenda(id, status) {
+  try {
+    await apiFetch(`/api/encomendas/${id}/status`, { method: 'POST', body: { status } });
+    await loadOrders();
+    renderOrdersBoard();
+  } catch (err) {
+    const errorEl = document.getElementById('encomendasError');
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+  }
+}
+
+async function deleteOrder(id) {
+  if (!window.confirm('Excluir essa encomenda?')) return;
+  try {
+    await apiFetch(`/api/encomendas/${id}`, { method: 'DELETE' });
+    await loadOrders();
+    renderOrdersBoard();
+  } catch (err) {
+    const errorEl = document.getElementById('encomendasError');
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+  }
+}
+
+function setupOrderModal() {
+  document.getElementById('novaEncomendaBtn').addEventListener('click', () => openOrderModal(null));
+  document.getElementById('orderCancelBtn').addEventListener('click', closeOrderModal);
+  document.getElementById('orderForm').addEventListener('submit', handleOrderSubmit);
+  document.getElementById('orderModal').addEventListener('click', (e) => {
+    if (e.target.id === 'orderModal') closeOrderModal();
+  });
+  document.getElementById('orderProdutoSelect').addEventListener('change', handleOrderProdutoChange);
+}
+
+async function loadOrders() {
+  if (!currentUser) {
+    orders = [];
+    return;
+  }
+
+  try {
+    const data = await apiFetch('/api/encomendas');
+    orders = data.encomendas;
+    encomendasIsPremium = data.isPremium;
+    encomendasLimiteGratis = data.limiteGratis;
+  } catch {
+    orders = [];
+  }
+}
+
+// ============================================================
 // Ligação com a calculadora: impressora padrão da conta vira a
 // impressora usada nas Configurações e no cálculo.
 // ============================================================
@@ -684,6 +916,7 @@ async function init() {
   setupAuthModal();
   setupPrinterModal();
   setupProductSave();
+  setupOrderModal();
 
   document.getElementById('settingsBtn').addEventListener('click', updatePrinterPresetSelect);
   document.getElementById('printerPreset').addEventListener('change', handlePrinterPresetChange);
@@ -691,6 +924,8 @@ async function init() {
   document.getElementById('impressorasCadastrarBtn').addEventListener('click', () => openAuthModal('cadastro'));
   document.getElementById('produtosEntrarBtn').addEventListener('click', () => openAuthModal('login'));
   document.getElementById('produtosCadastrarBtn').addEventListener('click', () => openAuthModal('cadastro'));
+  document.getElementById('encomendasEntrarBtn').addEventListener('click', () => openAuthModal('login'));
+  document.getElementById('encomendasCadastrarBtn').addEventListener('click', () => openAuthModal('cadastro'));
 
   try {
     const data = await apiFetch('/api/auth/me');
@@ -700,7 +935,7 @@ async function init() {
   }
 
   renderUserArea();
-  await Promise.all([loadPrinters(), loadProducts()]);
+  await Promise.all([loadPrinters(), loadProducts(), loadOrders()]);
 }
 
 document.addEventListener('DOMContentLoaded', init);
