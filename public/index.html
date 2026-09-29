@@ -159,20 +159,37 @@
       </label>
 
       <label class="field">
-        <span>Custo da impressora (depreciação, por hora)</span>
-        <div class="input-suffix">
-          <span class="prefix">R$</span>
-          <input type="number" id="custoImpressoraHora" min="0" step="0.01" value="0.73">
-        </div>
-        <p class="field-hint">Calculado assim: preço da impressora ÷ vida útil em horas. Exemplo: Bambu A1 mini custa R$ 2.200 com vida útil de 3.000 h → R$ 0,73/h.</p>
+        <span>Impressora</span>
+        <select id="printerPreset" class="select-field">
+          <option value="a1mini">Bambu Lab A1 mini</option>
+          <option value="personalizada">Personalizada</option>
+        </select>
       </label>
 
       <label class="field">
-        <span>Potência da impressora</span>
+        <span>Preço da impressora</span>
         <div class="input-suffix">
-          <input type="number" id="potenciaImpressora" min="0" step="1" value="150">
+          <span class="prefix">R$</span>
+          <input type="number" id="precoImpressora" min="0" step="0.01" value="2319.00">
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Vida útil estimada</span>
+        <div class="input-suffix">
+          <input type="number" id="vidaUtilHoras" min="1" step="1" value="3000">
+          <span class="suffix">h</span>
+        </div>
+        <p class="field-hint" id="custoHoraCalculado">Custo por hora (calculado): R$ 0,77</p>
+      </label>
+
+      <label class="field">
+        <span>Potência média durante a impressão</span>
+        <div class="input-suffix">
+          <input type="number" id="potenciaImpressora" min="0" step="1" value="90">
           <span class="suffix">W</span>
         </div>
+        <p class="field-hint">A Bambu Lab A1 mini costuma consumir entre 50 W e 130 W durante a impressão (bem abaixo do pico de ~190 W só na largada do aquecimento) — por isso usamos a média.</p>
       </label>
 
       <label class="field">
