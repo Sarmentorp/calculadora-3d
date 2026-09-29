@@ -1,0 +1,15 @@
+# render.yaml
+# Arquivo de configuração pro Render.com. Com ele, ao invés de preencher
+# formulário manualmente, você escolhe "New +" -> "Blueprint" no Render,
+# aponta pro repositório do GitHub, e ele lê essas configurações sozinho.
+
+services:
+  - type: web
+    name: precifica3d
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.2

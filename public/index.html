@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Precifica3D — Calculadora de custo e preço</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-badge">P3D</span>
+      <div>
+        <strong>Precifica3D</strong>
+        <div class="brand-sub">calculadora de custo e preço</div>
+      </div>
+    </div>
+    <button id="settingsBtn" class="icon-btn" title="Configurações de custo">⚙️</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="calculadora">🧮 Calculadora</button>
+    <button class="tab disabled" title="Chega na Etapa 4">📦 Produtos</button>
+    <button class="tab disabled" title="Chega na Etapa 4">🖨️ Impressoras</button>
+    <button class="tab disabled" title="Chega na Etapa 5">🗂️ Encomendas</button>
+  </nav>
+
+  <main class="content">
+    <h1>Quanto custa essa peça?</h1>
+    <p class="subtitle">Peso e tempo do fatiador — o preço sai na hora.</p>
+
+    <section class="card">
+      <label class="field">
+        <span>Peso de impressão</span>
+        <div class="input-suffix">
+          <input type="number" id="peso" min="0" step="0.1" placeholder="Ex: 45">
+          <span class="suffix">g</span>
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Tempo de impressão</span>
+        <div class="time-row">
+          <div class="input-suffix">
+            <input type="number" id="horas" min="0" step="1" placeholder="0">
+            <span class="suffix">h</span>
+          </div>
+          <div class="input-suffix">
+            <input type="number" id="minutos" min="0" max="59" step="1" placeholder="00">
+            <span class="suffix">min</span>
+          </div>
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Quanto você quer ganhar em cima do custo?</span>
+        <div class="margin-row">
+          <button class="chip active" data-margin="50">+50%</button>
+          <button class="chip" data-margin="75">+75%</button>
+          <button class="chip" data-margin="100">+100%</button>
+          <button class="chip" data-margin="200">+200%</button>
+          <div class="input-suffix chip-custom">
+            <input type="number" id="margemCustom" min="0" step="1" value="50">
+            <span class="suffix">%</span>
+          </div>
+        </div>
+      </label>
+
+      <details class="advanced">
+        <summary>Opções avançadas</summary>
+
+        <label class="field">
+          <span>Embalagem <em>(padrão: R$ 1,00)</em></span>
+          <div class="input-suffix">
+            <span class="prefix">R$</span>
+            <input type="number" id="embalagem" min="0" step="0.01" value="1.00">
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Taxa de falha <em>(padrão: 10%)</em></span>
+          <div class="input-suffix">
+            <input type="number" id="taxaFalha" min="0" max="90" step="1" value="10">
+            <span class="suffix">%</span>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Custos extras</span>
+          <div class="input-suffix">
+            <span class="prefix">R$</span>
+            <input type="number" id="custosExtras" min="0" step="0.01" value="0">
+          </div>
+        </label>
+
+        <label class="checkbox-field">
+          <input type="checkbox" id="precoMarketeiro">
+          <span>Preço marketeiro <em>(arredonda para terminar em ,90)</em></span>
+        </label>
+      </details>
+
+      <div class="result-box">
+        <span class="result-label">PREÇO SUGERIDO</span>
+        <span class="result-value" id="resultado">R$ --,--</span>
+        <p class="result-hint" id="resultHint">Preencha o peso e o tempo de impressão para ver o resultado.</p>
+      </div>
+
+      <details class="breakdown" id="breakdown" hidden>
+        <summary>Ver como esse preço foi calculado</summary>
+        <div id="breakdownBody"></div>
+      </details>
+    </section>
+  </main>
+
+  <!-- Painel de configurações: preço do filamento, custo da impressora, energia -->
+  <div class="modal-backdrop" id="settingsModal" hidden>
+    <div class="modal">
+      <h2>Configurações de custo</h2>
+      <p class="modal-sub">Esses valores ficam salvos neste navegador. Nas próximas etapas eles passam a ficar salvos na sua conta.</p>
+
+      <label class="field">
+        <span>Preço do filamento (por kg)</span>
+        <div class="input-suffix">
+          <span class="prefix">R$</span>
+          <input type="number" id="precoFilamento" min="0" step="0.01" value="89.90">
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Custo da impressora (depreciação, por hora)</span>
+        <div class="input-suffix">
+          <span class="prefix">R$</span>
+          <input type="number" id="custoImpressoraHora" min="0" step="0.01" value="0.73">
+        </div>
+        <p class="field-hint">Calculado assim: preço da impressora ÷ vida útil em horas. Exemplo: Bambu A1 mini custa R$ 2.200 com vida útil de 3.000 h → R$ 0,73/h.</p>
+      </label>
+
+      <label class="field">
+        <span>Potência da impressora</span>
+        <div class="input-suffix">
+          <input type="number" id="potenciaImpressora" min="0" step="1" value="150">
+          <span class="suffix">W</span>
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Tarifa de energia elétrica</span>
+        <div class="input-suffix">
+          <span class="prefix">R$</span>
+          <input type="number" id="tarifaEnergia" min="0" step="0.01" value="0.95">
+          <span class="suffix">/kWh</span>
+        </div>
+      </label>
+
+      <div class="modal-actions">
+        <button id="closeSettings" class="btn-primary">Salvar e fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="calculator.js"></script>
+</body>
+</html>
