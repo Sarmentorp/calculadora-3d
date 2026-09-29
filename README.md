@@ -5,13 +5,13 @@ Calculadora de custo e preço para impressão 3D — projeto pessoal, inspirado 
 
 ## Status
 
-Etapa 3 concluída e a parte de Impressoras da Etapa 4 também: agora dá pra
-criar conta, entrar, e salvar sua impressora pra calculadora usar sozinha.
+Etapa 4 concluída: com uma conta, dá pra salvar impressoras e produtos, e os
+dois já alimentam a calculadora sozinhos.
 
 - [x] Etapa 1 — Estrutura do projeto (Node + Express + SQLite)
 - [x] Etapa 2 — Calculadora de custo/preço (sem login)
 - [x] Etapa 3 — Contas e login (grátis vs. premium)
-- [ ] Etapa 4 — Produtos salvos (Impressoras já está pronta ✅)
+- [x] Etapa 4 — Produtos e Impressoras salvos
 - [ ] Etapa 5 — Encomendas (fila / imprimindo / pronto)
 
 ## Como rodar no seu computador
@@ -47,32 +47,43 @@ Clique no ⚙️ (configurações) pra ajustar os valores de base. Por padrão:
 
 Clique em "Ver como esse preço foi calculado" pra ver essa conta line a line.
 
-## Contas e impressoras salvas
+## Contas, impressoras e produtos salvos
 
 Clique em "Entrar" (canto superior direito) pra criar uma conta grátis ou
-entrar numa existente. Com a conta, a aba **Impressoras** deixa de ficar
-travada: você cadastra suas impressoras (nome, preço, vida útil, potência) e
-marca uma como "em uso" — ela passa a alimentar a calculadora automaticamente
-(as Configurações mostram essa impressora e o cálculo já usa o custo por hora
-dela). No plano grátis dá pra salvar 2 impressoras; o plano premium (ainda não
-existe forma de assinar) vai liberar impressoras ilimitadas.
+entrar numa existente. Com a conta, duas abas deixam de ficar travadas:
+
+- **Impressoras**: cadastre suas impressoras (nome, preço, vida útil,
+  potência) e marque uma como "em uso" — ela passa a alimentar a calculadora
+  automaticamente (as Configurações mostram essa impressora e o cálculo já
+  usa o custo por hora dela). Limite do plano grátis: 2 impressoras.
+- **Produtos**: na Calculadora, depois de preencher peso/tempo/margem
+  (e marketplace, se for o caso), clique em "Salvar como produto" e dê um
+  nome — ele guarda os valores que você digitou, não um preço congelado, então
+  toda vez que você reabre um produto o preço é recalculado com o filamento e
+  a impressora atuais. Na aba Produtos, clique em "Abrir na calculadora" pra
+  reabrir um produto salvo (os campos e o marketplace vêm preenchidos
+  sozinhos) — a calculadora mostra um aviso de "Editando o produto X", e o
+  botão vira "Atualizar produto" (ou "Salvar como novo produto" se você quiser
+  duplicar em vez de sobrescrever). Limite do plano grátis: 5 produtos.
+
+O plano premium (ainda não existe forma de assinar) vai liberar impressoras e
+produtos ilimitados.
 
 ## Estrutura do projeto
 
 ```
 calculadora-3d/
-├── server.js          # servidor Express (página + API de contas/impressoras)
+├── server.js          # servidor Express (página + API de contas/impressoras/produtos)
 ├── auth.js            # senha com hash, sessão por cookie, limites do plano grátis
-├── db.js              # configuração do banco SQLite local (users, sessions, printers)
+├── db.js              # configuração do banco SQLite local (users, sessions, printers, products)
 ├── public/
 │   ├── index.html     # a página da calculadora
 │   ├── styles.css     # visual (tema escuro, identidade Precifica3D)
 │   ├── calculator.js  # toda a lógica de cálculo, roda no navegador
-│   └── app.js         # login/cadastro, aba Impressoras, liga a conta à calculadora
+│   └── app.js         # login/cadastro, abas Impressoras e Produtos, liga a conta à calculadora
 └── data/               # banco de dados local (criado automaticamente, não vai pro Git)
 ```
 
 ## Próximos passos
 
-Falta a aba **Produtos** (peças salvas com preço pronto) pra fechar a Etapa 4,
-e depois a Etapa 5 (Encomendas, em estilo kanban).
+Falta a Etapa 5 (Encomendas, em estilo kanban: fila / imprimindo / pronto).

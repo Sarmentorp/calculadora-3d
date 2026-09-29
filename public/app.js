@@ -10,6 +10,20 @@ let isPremium = false;
 let limiteGratis = 1;
 let authMode = 'login';
 
+let products = [];
+let produtosIsPremium = false;
+let produtosLimiteGratis = 5;
+let editingProductId = null;
+let editingProductNome = '';
+let pendingSaveAsNew = false;
+
+const MARKETPLACE_LABELS = {
+  ml_classico: 'Mercado Livre — Clássico',
+  ml_premium: 'Mercado Livre — Premium',
+  shopee: 'Shopee',
+  tiktok: 'TikTok Shop',
+};
+
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -57,6 +71,7 @@ function switchTab(tab) {
     v.hidden = v.id !== `view-${tab}`;
   });
   if (tab === 'impressoras') renderImpressorasView();
+  if (tab === 'produtos') renderProdutosView();
 }
 
 // ============================================================
@@ -116,8 +131,9 @@ async function handleAuthSubmit(e) {
     currentUser = data.user;
     closeAuthModal();
     renderUserArea();
-    await loadPrinters();
+    await Promise.all([loadPrinters(), loadProducts()]);
     if (!document.getElementById('view-impressoras').hidden) renderImpressorasView();
+    if (!document.getElementById('view-produtos').hidden) renderProdutosView();
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.hidden = false;
@@ -132,9 +148,12 @@ async function logout() {
   }
   currentUser = null;
   printers = [];
+  products = [];
+  cancelarEdicaoProduto();
   renderUserArea();
   updatePrinterPresetSelect();
   if (!document.getElementById('view-impressoras').hidden) renderImpressorasView();
+  if (!document.getElementById('view-produtos').hidden) renderProdutosView();
 }
 
 function setupAuthModal() {
@@ -315,6 +334,275 @@ function setupPrinterModal() {
 }
 
 // ============================================================
+// Aba Produtos
+// ============================================================
+function renderProdutosView() {
+  const loggedOut = document.getElementById('produtosLoggedOut');
+  const loggedIn = document.getElementById('produtosLoggedIn');
+
+  if (!currentUser) {
+    loggedOut.hidden = false;
+    loggedIn.hidden = true;
+    return;
+  }
+
+  loggedOut.hidden = true;
+  loggedIn.hidden = false;
+  renderProductsList();
+}
+
+function calcularProduto(p) {
+  const input = {
+    peso: p.peso,
+    tempoHoras: p.horas + p.minutos / 60,
+    margem: p.margem,
+    embalagem: p.embalagem,
+    taxaFalha: p.taxa_falha,
+    custosExtras: p.custos_extras,
+    precoMarketeiro: !!p.preco_marketeiro,
+    marketplace: p.marketplace,
+    comissaoPct: p.comissao_pct,
+    taxaFixaMarketplace: p.taxa_fixa_marketplace,
+  };
+  return window.Precifica3D.calcular(input, window.Precifica3D.getSettings());
+}
+
+function productCardHtml(p) {
+  const r = calcularProduto(p);
+  const { formatarReais } = window.Precifica3D;
+  const badge = p.marketplace !== 'nenhum'
+    ? `<span class="badge-info">${escapeHtml(MARKETPLACE_LABELS[p.marketplace] || p.marketplace)}</span>`
+    : '';
+
+  return `
+    <div class="printer-card">
+      ${badge}
+      <h3>${escapeHtml(p.nome)}</h3>
+      <dl class="printer-specs">
+        <div><dt>Peso</dt><dd>${p.peso} g</dd></div>
+        <div><dt>Tempo</dt><dd>${p.horas}h ${p.minutos}min</dd></div>
+        <div><dt>Margem</dt><dd>+${p.margem}%</dd></div>
+        <div><dt>${r.temMarketplace ? 'Preço do anúncio' : 'Preço sugerido'}</dt><dd>${formatarReais(r.precoFinal)}</dd></div>
+      </dl>
+      <div class="printer-actions">
+        <button class="btn-secondary" data-abrir="${p.id}">Abrir na calculadora</button>
+        <button class="btn-ghost btn-danger" data-excluir="${p.id}">Excluir</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderProductsList() {
+  const list = document.getElementById('produtosList');
+  const hint = document.getElementById('produtosLimitHint');
+  const errorEl = document.getElementById('produtosError');
+  errorEl.hidden = true;
+
+  if (products.length === 0) {
+    list.innerHTML = '<p class="field-hint">Você ainda não tem nenhum produto salvo.</p>';
+  } else {
+    list.innerHTML = products.map(productCardHtml).join('');
+    list.querySelectorAll('[data-abrir]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = products.find((pp) => pp.id === Number(btn.dataset.abrir));
+        if (p) abrirProdutoNaCalculadora(p);
+      });
+    });
+    list.querySelectorAll('[data-excluir]').forEach((btn) => {
+      btn.addEventListener('click', () => deleteProduct(Number(btn.dataset.excluir)));
+    });
+  }
+
+  if (!produtosIsPremium && products.length >= produtosLimiteGratis) {
+    const substantivo = produtosLimiteGratis === 1 ? 'produto salvo' : 'produtos salvos';
+    hint.hidden = false;
+    hint.textContent = `Plano grátis: ${products.length}/${produtosLimiteGratis} ${substantivo}. Em breve: plano premium com produtos ilimitados.`;
+  } else {
+    hint.hidden = true;
+  }
+}
+
+function abrirProdutoNaCalculadora(p) {
+  document.getElementById('peso').value = p.peso;
+  document.getElementById('horas').value = p.horas;
+  document.getElementById('minutos').value = p.minutos;
+  document.getElementById('margemCustom').value = p.margem;
+  document.querySelectorAll('.chip[data-margin]').forEach((c) => {
+    c.classList.toggle('active', Number(c.dataset.margin) === p.margem);
+  });
+  document.getElementById('embalagem').value = p.embalagem;
+  document.getElementById('taxaFalha').value = p.taxa_falha;
+  document.getElementById('custosExtras').value = p.custos_extras;
+  document.getElementById('precoMarketeiro').checked = !!p.preco_marketeiro;
+  document.getElementById('marketplace').value = p.marketplace;
+  document.getElementById('marketplaceFields').hidden = p.marketplace === 'nenhum';
+  document.getElementById('comissaoPct').value = p.comissao_pct;
+  document.getElementById('taxaFixaMarketplace').value = p.taxa_fixa_marketplace;
+
+  if (p.marketplace !== 'nenhum') {
+    const rDireto = window.Precifica3D.calcular(
+      { peso: p.peso, tempoHoras: p.horas + p.minutos / 60, margem: p.margem, embalagem: p.embalagem,
+        taxaFalha: p.taxa_falha, custosExtras: p.custos_extras, precoMarketeiro: false,
+        marketplace: 'nenhum', comissaoPct: 0, taxaFixaMarketplace: 0 },
+      window.Precifica3D.getSettings()
+    );
+    const defaults = window.Precifica3D.getMarketplaceDefaults(p.marketplace, rDireto.precoDireto);
+    document.getElementById('marketplaceHint').textContent = defaults.hint;
+  }
+
+  editingProductId = p.id;
+  editingProductNome = p.nome;
+  atualizarBannerEdicaoProduto();
+
+  window.Precifica3D.atualizar();
+  switchTab('calculadora');
+}
+
+async function deleteProduct(id) {
+  if (!window.confirm('Excluir esse produto?')) return;
+  try {
+    await apiFetch(`/api/produtos/${id}`, { method: 'DELETE' });
+    if (editingProductId === id) cancelarEdicaoProduto();
+    await loadProducts();
+    renderProductsList();
+  } catch (err) {
+    const errorEl = document.getElementById('produtosError');
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+  }
+}
+
+function atualizarBannerEdicaoProduto() {
+  const banner = document.getElementById('editingProductBanner');
+  const salvarBtn = document.getElementById('salvarProdutoBtn');
+  const salvarComoNovoBtn = document.getElementById('salvarComoNovoProdutoBtn');
+
+  if (editingProductId) {
+    banner.hidden = false;
+    document.getElementById('editingProductNome').textContent = editingProductNome;
+    salvarBtn.textContent = 'Atualizar produto';
+    salvarComoNovoBtn.hidden = false;
+  } else {
+    banner.hidden = true;
+    salvarBtn.textContent = 'Salvar como produto';
+    salvarComoNovoBtn.hidden = true;
+  }
+}
+
+function cancelarEdicaoProduto() {
+  editingProductId = null;
+  editingProductNome = '';
+  atualizarBannerEdicaoProduto();
+}
+
+function showSalvarProdutoError(msg) {
+  const el = document.getElementById('salvarProdutoError');
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+function openProductSaveModal(forceNew) {
+  const errorEl = document.getElementById('salvarProdutoError');
+  errorEl.hidden = true;
+
+  const input = window.Precifica3D.readForm();
+  if (!(input.peso > 0) || !(input.tempoHoras > 0)) {
+    showSalvarProdutoError('Preencha peso e tempo de impressão antes de salvar.');
+    return;
+  }
+
+  const vaiCriar = forceNew || !editingProductId;
+  if (vaiCriar && !produtosIsPremium && products.length >= produtosLimiteGratis) {
+    showSalvarProdutoError(`Plano grátis: ${products.length}/${produtosLimiteGratis} produtos salvos. Exclua um produto ou espere o plano premium.`);
+    return;
+  }
+
+  pendingSaveAsNew = forceNew;
+  document.getElementById('productSaveModalTitle').textContent = vaiCriar ? 'Salvar como produto' : 'Atualizar produto';
+  document.getElementById('productSaveSubmitBtn').textContent = vaiCriar ? 'Salvar' : 'Atualizar';
+  document.getElementById('productSaveNome').value = vaiCriar ? '' : editingProductNome;
+  document.getElementById('productSaveError').hidden = true;
+  document.getElementById('productSaveModal').hidden = false;
+  document.getElementById('productSaveNome').focus();
+}
+
+function closeProductSaveModal() {
+  document.getElementById('productSaveModal').hidden = true;
+}
+
+async function handleProductSaveSubmit(e) {
+  e.preventDefault();
+  const nome = document.getElementById('productSaveNome').value.trim();
+  const errorEl = document.getElementById('productSaveError');
+  errorEl.hidden = true;
+
+  const input = window.Precifica3D.readForm();
+  const payload = {
+    nome,
+    peso: input.peso,
+    horas: parseFloat(document.getElementById('horas').value) || 0,
+    minutos: parseFloat(document.getElementById('minutos').value) || 0,
+    margem: input.margem,
+    embalagem: input.embalagem,
+    taxaFalha: input.taxaFalha,
+    custosExtras: input.custosExtras,
+    precoMarketeiro: input.precoMarketeiro,
+    marketplace: input.marketplace,
+    comissaoPct: input.comissaoPct,
+    taxaFixaMarketplace: input.taxaFixaMarketplace,
+  };
+
+  try {
+    let produto;
+    if (!pendingSaveAsNew && editingProductId) {
+      const data = await apiFetch(`/api/produtos/${editingProductId}`, { method: 'PUT', body: payload });
+      produto = data.produto;
+    } else {
+      const data = await apiFetch('/api/produtos', { method: 'POST', body: payload });
+      produto = data.produto;
+    }
+
+    closeProductSaveModal();
+    editingProductId = produto.id;
+    editingProductNome = produto.nome;
+    atualizarBannerEdicaoProduto();
+
+    await loadProducts();
+    if (!document.getElementById('view-produtos').hidden) renderProductsList();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+  }
+}
+
+function setupProductSave() {
+  document.getElementById('salvarProdutoBtn').addEventListener('click', () => openProductSaveModal(false));
+  document.getElementById('salvarComoNovoProdutoBtn').addEventListener('click', () => openProductSaveModal(true));
+  document.getElementById('cancelarEdicaoProdutoBtn').addEventListener('click', cancelarEdicaoProduto);
+  document.getElementById('productSaveForm').addEventListener('submit', handleProductSaveSubmit);
+  document.getElementById('productSaveCancelBtn').addEventListener('click', closeProductSaveModal);
+  document.getElementById('productSaveModal').addEventListener('click', (e) => {
+    if (e.target.id === 'productSaveModal') closeProductSaveModal();
+  });
+}
+
+async function loadProducts() {
+  if (!currentUser) {
+    products = [];
+    return;
+  }
+
+  try {
+    const data = await apiFetch('/api/produtos');
+    products = data.produtos;
+    produtosIsPremium = data.isPremium;
+    produtosLimiteGratis = data.limiteGratis;
+  } catch {
+    products = [];
+  }
+}
+
+// ============================================================
 // Ligação com a calculadora: impressora padrão da conta vira a
 // impressora usada nas Configurações e no cálculo.
 // ============================================================
@@ -395,11 +683,14 @@ async function init() {
   setupTabs();
   setupAuthModal();
   setupPrinterModal();
+  setupProductSave();
 
   document.getElementById('settingsBtn').addEventListener('click', updatePrinterPresetSelect);
   document.getElementById('printerPreset').addEventListener('change', handlePrinterPresetChange);
   document.getElementById('impressorasEntrarBtn').addEventListener('click', () => openAuthModal('login'));
   document.getElementById('impressorasCadastrarBtn').addEventListener('click', () => openAuthModal('cadastro'));
+  document.getElementById('produtosEntrarBtn').addEventListener('click', () => openAuthModal('login'));
+  document.getElementById('produtosCadastrarBtn').addEventListener('click', () => openAuthModal('cadastro'));
 
   try {
     const data = await apiFetch('/api/auth/me');
@@ -409,7 +700,7 @@ async function init() {
   }
 
   renderUserArea();
-  await loadPrinters();
+  await Promise.all([loadPrinters(), loadProducts()]);
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -20,7 +20,7 @@ app.use(express.static('public'));
 app.use(auth.identificarUsuario);
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, etapa: 3 });
+  res.json({ ok: true, etapa: 4 });
 });
 
 // ============================================================
@@ -180,6 +180,110 @@ app.post('/api/impressoras/:id/padrao', auth.exigirLogin, (req, res) => {
   db.prepare('UPDATE printers SET is_default = 0 WHERE user_id = ?').run(req.user.id);
   db.prepare('UPDATE printers SET is_default = 1 WHERE id = ?').run(impressora.id);
 
+  res.json({ ok: true });
+});
+
+// ============================================================
+// Produtos salvos (Etapa 4)
+// ============================================================
+// Um "produto" guarda os valores que você digitou na calculadora (peso,
+// tempo, margem, marketplace...) — não um preço congelado. Toda vez que
+// você abre ou lista um produto, o preço é recalculado com o filamento e a
+// impressora atuais, então ele nunca fica desatualizado sozinho.
+function validarProduto(body) {
+  const nome = String((body && body.nome) || '').trim();
+  const peso = parseFloat(body && body.peso);
+  const horas = parseFloat(body && body.horas) || 0;
+  const minutos = parseFloat(body && body.minutos) || 0;
+  const margem = parseFloat(body && body.margem);
+  const embalagem = parseFloat(body && body.embalagem) || 0;
+  const taxaFalha = parseFloat(body && body.taxaFalha) || 0;
+  const custosExtras = parseFloat(body && body.custosExtras) || 0;
+  const precoMarketeiro = !!(body && body.precoMarketeiro);
+  const marketplace = String((body && body.marketplace) || 'nenhum');
+  const comissaoPct = parseFloat(body && body.comissaoPct) || 0;
+  const taxaFixaMarketplace = parseFloat(body && body.taxaFixaMarketplace) || 0;
+
+  if (!nome) return { erro: 'Dê um nome pra esse produto.' };
+  if (nome.length > 80) return { erro: 'O nome está longo demais.' };
+  if (!(peso > 0)) return { erro: 'O peso precisa ser maior que zero.' };
+  if (horas <= 0 && minutos <= 0) return { erro: 'Informe o tempo de impressão.' };
+  if (!(margem >= 0)) return { erro: 'Informe a margem de lucro.' };
+
+  return {
+    valores: {
+      nome, peso, horas, minutos, margem, embalagem, taxaFalha, custosExtras,
+      precoMarketeiro, marketplace, comissaoPct, taxaFixaMarketplace,
+    },
+  };
+}
+
+app.get('/api/produtos', auth.exigirLogin, (req, res) => {
+  const produtos = db.prepare('SELECT * FROM products WHERE user_id = ? ORDER BY created_at ASC').all(req.user.id);
+  res.json({
+    produtos,
+    limiteGratis: auth.LIMITES_GRATIS.produtos,
+    isPremium: !!req.user.is_premium,
+  });
+});
+
+app.post('/api/produtos', auth.exigirLogin, (req, res) => {
+  if (!req.user.is_premium) {
+    const total = db.prepare('SELECT COUNT(*) AS n FROM products WHERE user_id = ?').get(req.user.id).n;
+    if (total >= auth.LIMITES_GRATIS.produtos) {
+      const limite = auth.LIMITES_GRATIS.produtos;
+      const substantivo = limite === 1 ? 'produto' : 'produtos';
+      return res.status(403).json({
+        error: 'limite_gratis',
+        message: `No plano grátis você pode salvar até ${limite} ${substantivo}. Em breve: plano premium com produtos ilimitados.`,
+      });
+    }
+  }
+
+  const { erro, valores: v } = validarProduto(req.body);
+  if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
+
+  const info = db
+    .prepare(
+      `INSERT INTO products
+       (user_id, nome, peso, horas, minutos, margem, embalagem, taxa_falha, custos_extras, preco_marketeiro, marketplace, comissao_pct, taxa_fixa_marketplace)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      req.user.id, v.nome, v.peso, v.horas, v.minutos, v.margem, v.embalagem, v.taxaFalha, v.custosExtras,
+      v.precoMarketeiro ? 1 : 0, v.marketplace, v.comissaoPct, v.taxaFixaMarketplace
+    );
+
+  const produto = db.prepare('SELECT * FROM products WHERE id = ?').get(info.lastInsertRowid);
+  res.status(201).json({ produto });
+});
+
+app.put('/api/produtos/:id', auth.exigirLogin, (req, res) => {
+  const produto = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!produto) return res.status(404).json({ error: 'nao_encontrada', message: 'Produto não encontrado.' });
+
+  const { erro, valores: v } = validarProduto(req.body);
+  if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
+
+  db.prepare(
+    `UPDATE products SET
+       nome = ?, peso = ?, horas = ?, minutos = ?, margem = ?, embalagem = ?, taxa_falha = ?, custos_extras = ?,
+       preco_marketeiro = ?, marketplace = ?, comissao_pct = ?, taxa_fixa_marketplace = ?
+     WHERE id = ?`
+  ).run(
+    v.nome, v.peso, v.horas, v.minutos, v.margem, v.embalagem, v.taxaFalha, v.custosExtras,
+    v.precoMarketeiro ? 1 : 0, v.marketplace, v.comissaoPct, v.taxaFixaMarketplace, produto.id
+  );
+
+  const atualizado = db.prepare('SELECT * FROM products WHERE id = ?').get(produto.id);
+  res.json({ produto: atualizado });
+});
+
+app.delete('/api/produtos/:id', auth.exigirLogin, (req, res) => {
+  const produto = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!produto) return res.status(404).json({ error: 'nao_encontrada', message: 'Produto não encontrado.' });
+
+  db.prepare('DELETE FROM products WHERE id = ?').run(produto.id);
   res.json({ ok: true });
 });
 

@@ -45,7 +45,7 @@
       </svg>
       Calculadora
     </button>
-    <button class="tab disabled" title="Chega na Etapa 4">
+    <button class="tab" data-tab="produtos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
       </svg>
@@ -70,6 +70,11 @@
     <section id="view-calculadora" class="view">
       <h1>Calculadora de preços</h1>
       <p class="subtitle">Calcule seus custos e defina o preço de cada peça.</p>
+
+      <div class="editing-banner" id="editingProductBanner" hidden>
+        <span>Editando o produto <strong id="editingProductNome"></strong></span>
+        <button type="button" class="btn-link" id="cancelarEdicaoProdutoBtn">Parar de editar</button>
+      </div>
 
       <div class="calc-layout">
         <section class="card form-card">
@@ -187,7 +192,35 @@
             <summary>Ver como esse preço foi calculado<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
             <div id="breakdownBody"></div>
           </details>
+
+          <div class="save-product-row">
+            <button class="btn-secondary" id="salvarProdutoBtn">Salvar como produto</button>
+            <button class="btn-ghost" id="salvarComoNovoProdutoBtn" hidden>Salvar como novo produto</button>
+            <p class="field-hint error-text" id="salvarProdutoError" hidden></p>
+          </div>
         </aside>
+      </div>
+    </section>
+
+    <section id="view-produtos" class="view" hidden>
+      <h1>Produtos</h1>
+      <p class="subtitle">Salve peças que você calcula sempre, pra reabrir sem preencher tudo de novo. O preço é recalculado com o filamento e a impressora atuais.</p>
+
+      <div id="produtosLoggedOut" class="card auth-gate" hidden>
+        <p>Crie uma conta grátis pra salvar seus produtos e reabri-los direto na calculadora, de qualquer aparelho.</p>
+        <div class="auth-gate-actions">
+          <button class="btn-primary" id="produtosEntrarBtn">Entrar</button>
+          <button class="btn-secondary" id="produtosCadastrarBtn">Criar conta grátis</button>
+        </div>
+      </div>
+
+      <div id="produtosLoggedIn" hidden>
+        <div class="printers-toolbar">
+          <p class="field-hint">Calcule uma peça na aba Calculadora e clique em "Salvar como produto".</p>
+          <p class="field-hint" id="produtosLimitHint" hidden></p>
+        </div>
+        <p class="field-hint error-text" id="produtosError" hidden></p>
+        <div id="produtosList" class="printers-grid"></div>
       </div>
     </section>
 
@@ -359,6 +392,30 @@
         <div class="modal-actions modal-actions-split">
           <button type="button" class="btn-ghost" id="printerCancelBtn">Cancelar</button>
           <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de nomear / renomear produto salvo -->
+  <div class="modal-backdrop" id="productSaveModal" hidden>
+    <div class="modal">
+      <h2 id="productSaveModalTitle">Salvar como produto</h2>
+      <p class="modal-sub">Isso salva o peso, tempo, margem e as opções de marketplace que você preencheu na calculadora.</p>
+
+      <form id="productSaveForm">
+        <label class="field">
+          <span>Nome do produto</span>
+          <div class="input-suffix">
+            <input type="text" id="productSaveNome" required maxlength="80" placeholder="Ex: Chaveiro Pokébola">
+          </div>
+        </label>
+
+        <p class="field-hint error-text" id="productSaveError" hidden></p>
+
+        <div class="modal-actions modal-actions-split">
+          <button type="button" class="btn-ghost" id="productSaveCancelBtn">Cancelar</button>
+          <button type="submit" class="btn-primary" id="productSaveSubmitBtn">Salvar</button>
         </div>
       </form>
     </div>

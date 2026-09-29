@@ -382,4 +382,7 @@ window.Precifica3D = {
   formatarReais,
   PRINTER_PRESETS,
   defaultSettings,
+  readForm,
+  calcular,
+  getMarketplaceDefaults,
 };

@@ -14,6 +14,7 @@ const SESSION_DIAS = 30;
 // deixa de valer pra quem tiver is_premium = 1.
 const LIMITES_GRATIS = {
   impressoras: 2,
+  produtos: 5,
 };
 
 function limparSessoesExpiradas() {
