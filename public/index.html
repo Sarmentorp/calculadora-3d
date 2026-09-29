@@ -3,146 +3,190 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Precifica3D — Calculadora de custo e preço</title>
+<title>Precifica3D — Calculadora de preços</title>
+<meta name="description" content="Custos, preços e orçamentos para impressão 3D.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Cpath d='M8 23 32 9l24 14-24 14L8 23Z' fill='%2363E6BE'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-badge">P3D</span>
-      <div>
-        <strong>Precifica3D</strong>
-        <div class="brand-sub">calculadora de custo e preço</div>
+      <svg class="brand-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M8 23 32 9l24 14-24 14L8 23Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        <path d="m8 34 24 14 24-14M8 45l24 14 24-14" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="brand-name">
+        <span class="brand-word">
+          <strong>Precifica</strong><strong class="brand-accent">3D</strong>
+        </span>
+        <span class="brand-tagline">Custos, preços e orçamentos para impressão 3D</span>
       </div>
     </div>
-    <button id="settingsBtn" class="icon-btn" title="Configurações de custo">⚙️</button>
+    <button id="settingsBtn" class="icon-btn" aria-label="Configurações de custo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>
+      </svg>
+    </button>
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="calculadora">🧮 Calculadora</button>
-    <button class="tab disabled" title="Chega na Etapa 4">📦 Produtos</button>
-    <button class="tab disabled" title="Chega na Etapa 4">🖨️ Impressoras</button>
-    <button class="tab disabled" title="Chega na Etapa 5">🗂️ Encomendas</button>
+    <button class="tab active" data-tab="calculadora">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>
+      </svg>
+      Calculadora
+    </button>
+    <button class="tab disabled" title="Chega na Etapa 4">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+      </svg>
+      Produtos
+    </button>
+    <button class="tab disabled" title="Chega na Etapa 4">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>
+      </svg>
+      Impressoras
+    </button>
+    <button class="tab disabled" title="Chega na Etapa 5">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
+      </svg>
+      Encomendas
+    </button>
   </nav>
 
   <main class="content">
-    <h1>Quanto custa essa peça?</h1>
-    <p class="subtitle">Peso e tempo do fatiador — o preço sai na hora.</p>
+    <h1>Calculadora de preços</h1>
+    <p class="subtitle">Calcule seus custos e defina o preço de cada peça.</p>
 
-    <section class="card">
-      <label class="field">
-        <span>Peso de impressão</span>
-        <div class="input-suffix">
-          <input type="number" id="peso" min="0" step="0.1" placeholder="Ex: 45">
-          <span class="suffix">g</span>
+    <div class="calc-layout">
+      <section class="card form-card">
+        <label class="field">
+          <span>Peso de impressão</span>
+          <div class="input-suffix">
+            <input type="number" id="peso" min="0" step="0.1" placeholder="Ex: 45">
+            <span class="suffix">g</span>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Tempo de impressão</span>
+          <div class="time-row">
+            <div class="input-suffix">
+              <input type="number" id="horas" min="0" step="1" placeholder="0">
+              <span class="suffix">h</span>
+            </div>
+            <div class="input-suffix">
+              <input type="number" id="minutos" min="0" max="59" step="1" placeholder="00">
+              <span class="suffix">min</span>
+            </div>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Quanto você quer ganhar em cima do custo?</span>
+          <div class="margin-row">
+            <button class="chip active" data-margin="50">+50%</button>
+            <button class="chip" data-margin="75">+75%</button>
+            <button class="chip" data-margin="100">+100%</button>
+            <button class="chip" data-margin="200">+200%</button>
+            <div class="input-suffix chip-custom">
+              <input type="number" id="margemCustom" min="0" step="1" value="50">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+        </label>
+
+        <div class="subsection-title">Marketplace</div>
+
+        <label class="field">
+          <span>Vai anunciar em algum marketplace?</span>
+          <select id="marketplace" class="select-field">
+            <option value="nenhum">Não, venda direta (WhatsApp, Instagram etc.)</option>
+            <option value="ml_classico">Mercado Livre — Clássico</option>
+            <option value="ml_premium">Mercado Livre — Premium</option>
+            <option value="shopee">Shopee</option>
+            <option value="tiktok">TikTok Shop</option>
+          </select>
+        </label>
+
+        <div id="marketplaceFields" hidden>
+          <label class="field">
+            <span>Comissão da plataforma</span>
+            <div class="input-suffix">
+              <input type="number" id="comissaoPct" min="0" max="50" step="0.1">
+              <span class="suffix">%</span>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Taxa fixa por item vendido</span>
+            <div class="input-suffix">
+              <span class="prefix">R$</span>
+              <input type="number" id="taxaFixaMarketplace" min="0" step="0.01">
+            </div>
+            <p class="field-hint" id="marketplaceHint"></p>
+          </label>
         </div>
-      </label>
 
-      <label class="field">
-        <span>Tempo de impressão</span>
-        <div class="time-row">
-          <div class="input-suffix">
-            <input type="number" id="horas" min="0" step="1" placeholder="0">
-            <span class="suffix">h</span>
-          </div>
-          <div class="input-suffix">
-            <input type="number" id="minutos" min="0" max="59" step="1" placeholder="00">
-            <span class="suffix">min</span>
-          </div>
+        <details class="advanced">
+          <summary>Opções avançadas<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+
+          <label class="field">
+            <span>Embalagem <em>(padrão: R$ 1,00)</em></span>
+            <div class="input-suffix">
+              <span class="prefix">R$</span>
+              <input type="number" id="embalagem" min="0" step="0.01" value="1.00">
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Taxa de falha <em>(padrão: 10%)</em></span>
+            <div class="input-suffix">
+              <input type="number" id="taxaFalha" min="0" max="90" step="1" value="10">
+              <span class="suffix">%</span>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Custos extras</span>
+            <div class="input-suffix">
+              <span class="prefix">R$</span>
+              <input type="number" id="custosExtras" min="0" step="0.01" value="0">
+            </div>
+          </label>
+
+          <label class="checkbox-field">
+            <input type="checkbox" id="precoMarketeiro">
+            <span>Preço marketeiro <em>(arredonda para terminar em ,90)</em></span>
+          </label>
+        </details>
+      </section>
+
+      <aside class="card summary-card">
+        <div class="result-box">
+          <span class="result-label" id="resultLabel">PREÇO SUGERIDO</span>
+          <span class="result-value" id="resultado">R$ --,--</span>
+          <p class="result-hint" id="resultHint">Preencha o peso e o tempo de impressão para ver o resultado.</p>
+          <p class="result-sub" id="resultSub" hidden></p>
         </div>
-      </label>
 
-      <label class="field">
-        <span>Quanto você quer ganhar em cima do custo?</span>
-        <div class="margin-row">
-          <button class="chip active" data-margin="50">+50%</button>
-          <button class="chip" data-margin="75">+75%</button>
-          <button class="chip" data-margin="100">+100%</button>
-          <button class="chip" data-margin="200">+200%</button>
-          <div class="input-suffix chip-custom">
-            <input type="number" id="margemCustom" min="0" step="1" value="50">
-            <span class="suffix">%</span>
-          </div>
-        </div>
-      </label>
-
-      <label class="field">
-        <span>Vai anunciar em algum marketplace?</span>
-        <select id="marketplace" class="select-field">
-          <option value="nenhum">Não, venda direta (WhatsApp, Instagram etc.)</option>
-          <option value="ml_classico">Mercado Livre — Clássico</option>
-          <option value="ml_premium">Mercado Livre — Premium</option>
-          <option value="shopee">Shopee</option>
-          <option value="tiktok">TikTok Shop</option>
-        </select>
-      </label>
-
-      <div id="marketplaceFields" hidden>
-        <label class="field">
-          <span>Comissão da plataforma</span>
-          <div class="input-suffix">
-            <input type="number" id="comissaoPct" min="0" max="50" step="0.1">
-            <span class="suffix">%</span>
-          </div>
-        </label>
-
-        <label class="field">
-          <span>Taxa fixa por item vendido</span>
-          <div class="input-suffix">
-            <span class="prefix">R$</span>
-            <input type="number" id="taxaFixaMarketplace" min="0" step="0.01">
-          </div>
-          <p class="field-hint" id="marketplaceHint"></p>
-        </label>
-      </div>
-
-      <details class="advanced">
-        <summary>Opções avançadas</summary>
-
-        <label class="field">
-          <span>Embalagem <em>(padrão: R$ 1,00)</em></span>
-          <div class="input-suffix">
-            <span class="prefix">R$</span>
-            <input type="number" id="embalagem" min="0" step="0.01" value="1.00">
-          </div>
-        </label>
-
-        <label class="field">
-          <span>Taxa de falha <em>(padrão: 10%)</em></span>
-          <div class="input-suffix">
-            <input type="number" id="taxaFalha" min="0" max="90" step="1" value="10">
-            <span class="suffix">%</span>
-          </div>
-        </label>
-
-        <label class="field">
-          <span>Custos extras</span>
-          <div class="input-suffix">
-            <span class="prefix">R$</span>
-            <input type="number" id="custosExtras" min="0" step="0.01" value="0">
-          </div>
-        </label>
-
-        <label class="checkbox-field">
-          <input type="checkbox" id="precoMarketeiro">
-          <span>Preço marketeiro <em>(arredonda para terminar em ,90)</em></span>
-        </label>
-      </details>
-
-      <div class="result-box">
-        <span class="result-label" id="resultLabel">PREÇO SUGERIDO</span>
-        <span class="result-value" id="resultado">R$ --,--</span>
-        <p class="result-hint" id="resultHint">Preencha o peso e o tempo de impressão para ver o resultado.</p>
-        <p class="result-sub" id="resultSub" hidden></p>
-      </div>
-
-      <details class="breakdown" id="breakdown" hidden>
-        <summary>Ver como esse preço foi calculado</summary>
-        <div id="breakdownBody"></div>
-      </details>
-    </section>
+        <details class="breakdown" id="breakdown" hidden>
+          <summary>Ver como esse preço foi calculado<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div id="breakdownBody"></div>
+        </details>
+      </aside>
+    </div>
   </main>
+
+  <footer class="site-footer">
+    <span class="footer-tagline">Precifica3D — Sua impressão tem valor.</span>
+  </footer>
 
   <!-- Painel de configurações: preço do filamento, custo da impressora, energia -->
   <div class="modal-backdrop" id="settingsModal" hidden>
