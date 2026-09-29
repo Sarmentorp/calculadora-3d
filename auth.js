@@ -18,32 +18,31 @@ const LIMITES_GRATIS = {
   encomendas: 5,
 };
 
-function limparSessoesExpiradas() {
-  db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`).run();
+async function limparSessoesExpiradas() {
+  await db.run(`DELETE FROM sessions WHERE expires_at < datetime('now')`);
 }
 
-function criarSessao(userId) {
-  limparSessoesExpiradas();
+async function criarSessao(userId) {
+  await limparSessoesExpiradas();
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_DIAS * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, userId, expiresAt);
+  await db.run('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)', [token, userId, expiresAt]);
   return { token, expiresAt };
 }
 
-function destruirSessao(token) {
+async function destruirSessao(token) {
   if (!token) return;
-  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  await db.run('DELETE FROM sessions WHERE token = ?', [token]);
 }
 
-function usuarioDaSessao(token) {
+async function usuarioDaSessao(token) {
   if (!token) return null;
-  const row = db
-    .prepare(
-      `SELECT u.id, u.email, u.is_premium
-       FROM sessions s JOIN users u ON u.id = s.user_id
-       WHERE s.token = ? AND s.expires_at > datetime('now')`
-    )
-    .get(token);
+  const row = await db.get(
+    `SELECT u.id, u.email, u.is_premium
+     FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.token = ? AND s.expires_at > datetime('now')`,
+    [token]
+  );
   return row || null;
 }
 
@@ -62,9 +61,14 @@ function limparCookieSessao(res) {
 }
 
 // Middleware: identifica o usuário se houver sessão válida, mas nunca bloqueia.
-function identificarUsuario(req, res, next) {
+async function identificarUsuario(req, res, next) {
   const token = req.cookies ? req.cookies[SESSION_COOKIE] : null;
-  req.user = usuarioDaSessao(token);
+  try {
+    req.user = await usuarioDaSessao(token);
+  } catch (err) {
+    console.error('Erro ao identificar usuário:', err.message);
+    req.user = null;
+  }
   req.sessionToken = token;
   next();
 }

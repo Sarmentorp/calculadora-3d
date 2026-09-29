@@ -1,6 +1,6 @@
 // server.js
-// Servidor Express: serve a página da calculadora + API de contas (Etapa 3)
-// e impressoras salvas (parte da Etapa 4).
+// Servidor Express: serve a página da calculadora + API de contas (Etapa 3),
+// impressoras, produtos e encomendas salvos (Etapa 4 e 5).
 
 const express = require('express');
 const cookieParser = require('cookie-parser');
@@ -19,6 +19,20 @@ app.use(cookieParser());
 app.use(express.static('public'));
 app.use(auth.identificarUsuario);
 
+// As rotas abaixo usam o banco de dados, que agora responde de forma
+// assíncrona (veja db.js). Esse "envelope" evita repetir o mesmo try/catch
+// em cada rota: se algo falhar (por exemplo, uma instabilidade momentânea
+// na conexão com o banco), a pessoa recebe um erro claro em vez da página
+// travar sem resposta.
+function asyncRoute(handler) {
+  return (req, res) => {
+    handler(req, res).catch((err) => {
+      console.error('Erro numa rota da API:', err);
+      res.status(500).json({ error: 'erro_interno', message: 'Algo deu errado no servidor. Tente de novo em instantes.' });
+    });
+  };
+}
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, etapa: 5 });
 });
@@ -32,7 +46,7 @@ function paraUsuarioPublico(user) {
   return { id: user.id, email: user.email, is_premium: !!user.is_premium };
 }
 
-app.post('/api/auth/cadastro', (req, res) => {
+app.post('/api/auth/cadastro', asyncRoute(async (req, res) => {
   const email = String((req.body && req.body.email) || '').trim().toLowerCase();
   const senha = String((req.body && req.body.senha) || '');
 
@@ -43,39 +57,39 @@ app.post('/api/auth/cadastro', (req, res) => {
     return res.status(400).json({ error: 'senha_curta', message: 'A senha precisa ter pelo menos 6 caracteres.' });
   }
 
-  const existente = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const existente = await db.get('SELECT id FROM users WHERE email = ?', [email]);
   if (existente) {
     return res.status(409).json({ error: 'email_em_uso', message: 'Já existe uma conta com esse e-mail.' });
   }
 
   const hash = auth.hashSenha(senha);
-  const info = db.prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)').run(email, hash);
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  const info = await db.run('INSERT INTO users (email, password_hash) VALUES (?, ?)', [email, hash]);
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [info.lastInsertRowid]);
 
-  const { token, expiresAt } = auth.criarSessao(user.id);
+  const { token, expiresAt } = await auth.criarSessao(user.id);
   auth.definirCookieSessao(res, token, expiresAt);
   res.status(201).json({ user: paraUsuarioPublico(user) });
-});
+}));
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const email = String((req.body && req.body.email) || '').trim().toLowerCase();
   const senha = String((req.body && req.body.senha) || '');
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
   if (!user || !auth.verificarSenha(senha, user.password_hash)) {
     return res.status(401).json({ error: 'credenciais_invalidas', message: 'E-mail ou senha incorretos.' });
   }
 
-  const { token, expiresAt } = auth.criarSessao(user.id);
+  const { token, expiresAt } = await auth.criarSessao(user.id);
   auth.definirCookieSessao(res, token, expiresAt);
   res.json({ user: paraUsuarioPublico(user) });
-});
+}));
 
-app.post('/api/auth/logout', (req, res) => {
-  auth.destruirSessao(req.sessionToken);
+app.post('/api/auth/logout', asyncRoute(async (req, res) => {
+  await auth.destruirSessao(req.sessionToken);
   auth.limparCookieSessao(res);
   res.json({ ok: true });
-});
+}));
 
 app.get('/api/auth/me', (req, res) => {
   res.json({ user: req.user ? paraUsuarioPublico(req.user) : null });
@@ -99,18 +113,18 @@ function validarImpressora(body) {
   return { valores: { nome, preco, vidaUtilHoras, potenciaW } };
 }
 
-app.get('/api/impressoras', auth.exigirLogin, (req, res) => {
-  const impressoras = db.prepare('SELECT * FROM printers WHERE user_id = ? ORDER BY created_at ASC').all(req.user.id);
+app.get('/api/impressoras', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const impressoras = await db.all('SELECT * FROM printers WHERE user_id = ? ORDER BY created_at ASC', [req.user.id]);
   res.json({
     impressoras,
     limiteGratis: auth.LIMITES_GRATIS.impressoras,
     isPremium: !!req.user.is_premium,
   });
-});
+}));
 
-app.post('/api/impressoras', auth.exigirLogin, (req, res) => {
+app.post('/api/impressoras', auth.exigirLogin, asyncRoute(async (req, res) => {
   if (!req.user.is_premium) {
-    const total = db.prepare('SELECT COUNT(*) AS n FROM printers WHERE user_id = ?').get(req.user.id).n;
+    const { n: total } = await db.get('SELECT COUNT(*) AS n FROM printers WHERE user_id = ?', [req.user.id]);
     if (total >= auth.LIMITES_GRATIS.impressoras) {
       const limite = auth.LIMITES_GRATIS.impressoras;
       const substantivo = limite === 1 ? 'impressora' : 'impressoras';
@@ -124,64 +138,65 @@ app.post('/api/impressoras', auth.exigirLogin, (req, res) => {
   const { erro, valores } = validarImpressora(req.body);
   if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
 
-  const jaTemAlguma = db.prepare('SELECT COUNT(*) AS n FROM printers WHERE user_id = ?').get(req.user.id).n > 0;
-  const info = db
-    .prepare(
-      `INSERT INTO printers (user_id, nome, preco, vida_util_horas, potencia_w, is_default)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(req.user.id, valores.nome, valores.preco, valores.vidaUtilHoras, valores.potenciaW, jaTemAlguma ? 0 : 1);
+  const { n: totalAtual } = await db.get('SELECT COUNT(*) AS n FROM printers WHERE user_id = ?', [req.user.id]);
+  const jaTemAlguma = totalAtual > 0;
+  const info = await db.run(
+    `INSERT INTO printers (user_id, nome, preco, vida_util_horas, potencia_w, is_default)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [req.user.id, valores.nome, valores.preco, valores.vidaUtilHoras, valores.potenciaW, jaTemAlguma ? 0 : 1]
+  );
 
-  const impressora = db.prepare('SELECT * FROM printers WHERE id = ?').get(info.lastInsertRowid);
+  const impressora = await db.get('SELECT * FROM printers WHERE id = ?', [info.lastInsertRowid]);
   res.status(201).json({ impressora });
-});
+}));
 
-app.put('/api/impressoras/:id', auth.exigirLogin, (req, res) => {
-  const impressora = db.prepare('SELECT * FROM printers WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.put('/api/impressoras/:id', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const impressora = await db.get('SELECT * FROM printers WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!impressora) return res.status(404).json({ error: 'nao_encontrada', message: 'Impressora não encontrada.' });
 
   const { erro, valores } = validarImpressora(req.body);
   if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
 
-  db.prepare('UPDATE printers SET nome = ?, preco = ?, vida_util_horas = ?, potencia_w = ? WHERE id = ?').run(
+  await db.run('UPDATE printers SET nome = ?, preco = ?, vida_util_horas = ?, potencia_w = ? WHERE id = ?', [
     valores.nome,
     valores.preco,
     valores.vidaUtilHoras,
     valores.potenciaW,
-    impressora.id
-  );
+    impressora.id,
+  ]);
 
-  const atualizada = db.prepare('SELECT * FROM printers WHERE id = ?').get(impressora.id);
+  const atualizada = await db.get('SELECT * FROM printers WHERE id = ?', [impressora.id]);
   res.json({ impressora: atualizada });
-});
+}));
 
-app.delete('/api/impressoras/:id', auth.exigirLogin, (req, res) => {
-  const impressora = db.prepare('SELECT * FROM printers WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.delete('/api/impressoras/:id', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const impressora = await db.get('SELECT * FROM printers WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!impressora) return res.status(404).json({ error: 'nao_encontrada', message: 'Impressora não encontrada.' });
 
-  db.prepare('DELETE FROM printers WHERE id = ?').run(impressora.id);
+  await db.run('DELETE FROM printers WHERE id = ?', [impressora.id]);
 
   if (impressora.is_default) {
-    const proxima = db
-      .prepare('SELECT id FROM printers WHERE user_id = ? ORDER BY created_at ASC LIMIT 1')
-      .get(req.user.id);
+    const proxima = await db.get(
+      'SELECT id FROM printers WHERE user_id = ? ORDER BY created_at ASC LIMIT 1',
+      [req.user.id]
+    );
     if (proxima) {
-      db.prepare('UPDATE printers SET is_default = 1 WHERE id = ?').run(proxima.id);
+      await db.run('UPDATE printers SET is_default = 1 WHERE id = ?', [proxima.id]);
     }
   }
 
   res.json({ ok: true });
-});
+}));
 
-app.post('/api/impressoras/:id/padrao', auth.exigirLogin, (req, res) => {
-  const impressora = db.prepare('SELECT * FROM printers WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.post('/api/impressoras/:id/padrao', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const impressora = await db.get('SELECT * FROM printers WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!impressora) return res.status(404).json({ error: 'nao_encontrada', message: 'Impressora não encontrada.' });
 
-  db.prepare('UPDATE printers SET is_default = 0 WHERE user_id = ?').run(req.user.id);
-  db.prepare('UPDATE printers SET is_default = 1 WHERE id = ?').run(impressora.id);
+  await db.run('UPDATE printers SET is_default = 0 WHERE user_id = ?', [req.user.id]);
+  await db.run('UPDATE printers SET is_default = 1 WHERE id = ?', [impressora.id]);
 
   res.json({ ok: true });
-});
+}));
 
 // ============================================================
 // Produtos salvos (Etapa 4)
@@ -218,18 +233,18 @@ function validarProduto(body) {
   };
 }
 
-app.get('/api/produtos', auth.exigirLogin, (req, res) => {
-  const produtos = db.prepare('SELECT * FROM products WHERE user_id = ? ORDER BY created_at ASC').all(req.user.id);
+app.get('/api/produtos', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const produtos = await db.all('SELECT * FROM products WHERE user_id = ? ORDER BY created_at ASC', [req.user.id]);
   res.json({
     produtos,
     limiteGratis: auth.LIMITES_GRATIS.produtos,
     isPremium: !!req.user.is_premium,
   });
-});
+}));
 
-app.post('/api/produtos', auth.exigirLogin, (req, res) => {
+app.post('/api/produtos', auth.exigirLogin, asyncRoute(async (req, res) => {
   if (!req.user.is_premium) {
-    const total = db.prepare('SELECT COUNT(*) AS n FROM products WHERE user_id = ?').get(req.user.id).n;
+    const { n: total } = await db.get('SELECT COUNT(*) AS n FROM products WHERE user_id = ?', [req.user.id]);
     if (total >= auth.LIMITES_GRATIS.produtos) {
       const limite = auth.LIMITES_GRATIS.produtos;
       const substantivo = limite === 1 ? 'produto' : 'produtos';
@@ -243,49 +258,49 @@ app.post('/api/produtos', auth.exigirLogin, (req, res) => {
   const { erro, valores: v } = validarProduto(req.body);
   if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
 
-  const info = db
-    .prepare(
-      `INSERT INTO products
-       (user_id, nome, peso, horas, minutos, margem, embalagem, taxa_falha, custos_extras, preco_marketeiro, marketplace, comissao_pct, taxa_fixa_marketplace)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
+  const info = await db.run(
+    `INSERT INTO products
+     (user_id, nome, peso, horas, minutos, margem, embalagem, taxa_falha, custos_extras, preco_marketeiro, marketplace, comissao_pct, taxa_fixa_marketplace)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
       req.user.id, v.nome, v.peso, v.horas, v.minutos, v.margem, v.embalagem, v.taxaFalha, v.custosExtras,
-      v.precoMarketeiro ? 1 : 0, v.marketplace, v.comissaoPct, v.taxaFixaMarketplace
-    );
+      v.precoMarketeiro ? 1 : 0, v.marketplace, v.comissaoPct, v.taxaFixaMarketplace,
+    ]
+  );
 
-  const produto = db.prepare('SELECT * FROM products WHERE id = ?').get(info.lastInsertRowid);
+  const produto = await db.get('SELECT * FROM products WHERE id = ?', [info.lastInsertRowid]);
   res.status(201).json({ produto });
-});
+}));
 
-app.put('/api/produtos/:id', auth.exigirLogin, (req, res) => {
-  const produto = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.put('/api/produtos/:id', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const produto = await db.get('SELECT * FROM products WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!produto) return res.status(404).json({ error: 'nao_encontrada', message: 'Produto não encontrado.' });
 
   const { erro, valores: v } = validarProduto(req.body);
   if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
 
-  db.prepare(
+  await db.run(
     `UPDATE products SET
        nome = ?, peso = ?, horas = ?, minutos = ?, margem = ?, embalagem = ?, taxa_falha = ?, custos_extras = ?,
        preco_marketeiro = ?, marketplace = ?, comissao_pct = ?, taxa_fixa_marketplace = ?
-     WHERE id = ?`
-  ).run(
-    v.nome, v.peso, v.horas, v.minutos, v.margem, v.embalagem, v.taxaFalha, v.custosExtras,
-    v.precoMarketeiro ? 1 : 0, v.marketplace, v.comissaoPct, v.taxaFixaMarketplace, produto.id
+     WHERE id = ?`,
+    [
+      v.nome, v.peso, v.horas, v.minutos, v.margem, v.embalagem, v.taxaFalha, v.custosExtras,
+      v.precoMarketeiro ? 1 : 0, v.marketplace, v.comissaoPct, v.taxaFixaMarketplace, produto.id,
+    ]
   );
 
-  const atualizado = db.prepare('SELECT * FROM products WHERE id = ?').get(produto.id);
+  const atualizado = await db.get('SELECT * FROM products WHERE id = ?', [produto.id]);
   res.json({ produto: atualizado });
-});
+}));
 
-app.delete('/api/produtos/:id', auth.exigirLogin, (req, res) => {
-  const produto = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.delete('/api/produtos/:id', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const produto = await db.get('SELECT * FROM products WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!produto) return res.status(404).json({ error: 'nao_encontrada', message: 'Produto não encontrado.' });
 
-  db.prepare('DELETE FROM products WHERE id = ?').run(produto.id);
+  await db.run('DELETE FROM products WHERE id = ?', [produto.id]);
   res.json({ ok: true });
-});
+}));
 
 // ============================================================
 // Encomendas (Etapa 5)
@@ -325,20 +340,21 @@ function validarEncomenda(body) {
   };
 }
 
-app.get('/api/encomendas', auth.exigirLogin, (req, res) => {
-  const encomendas = db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at ASC').all(req.user.id);
+app.get('/api/encomendas', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const encomendas = await db.all('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at ASC', [req.user.id]);
   res.json({
     encomendas,
     limiteGratis: auth.LIMITES_GRATIS.encomendas,
     isPremium: !!req.user.is_premium,
   });
-});
+}));
 
-app.post('/api/encomendas', auth.exigirLogin, (req, res) => {
+app.post('/api/encomendas', auth.exigirLogin, asyncRoute(async (req, res) => {
   if (!req.user.is_premium) {
-    const ativas = db
-      .prepare(`SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status != 'entregue'`)
-      .get(req.user.id).n;
+    const { n: ativas } = await db.get(
+      `SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status != 'entregue'`,
+      [req.user.id]
+    );
     if (ativas >= auth.LIMITES_GRATIS.encomendas) {
       const limite = auth.LIMITES_GRATIS.encomendas;
       const substantivo = limite === 1 ? 'encomenda ativa' : 'encomendas ativas';
@@ -353,53 +369,53 @@ app.post('/api/encomendas', auth.exigirLogin, (req, res) => {
   if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
 
   if (v.produtoId) {
-    const produto = db.prepare('SELECT id FROM products WHERE id = ? AND user_id = ?').get(v.produtoId, req.user.id);
+    const produto = await db.get('SELECT id FROM products WHERE id = ? AND user_id = ?', [v.produtoId, req.user.id]);
     if (!produto) v.produtoId = null;
   }
 
-  const info = db
-    .prepare(
-      `INSERT INTO orders
-       (user_id, cliente_nome, cliente_contato, produto_id, item_nome, quantidade, preco, status, data_entrega, observacoes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'fila', ?, ?)`
-    )
-    .run(
+  const info = await db.run(
+    `INSERT INTO orders
+     (user_id, cliente_nome, cliente_contato, produto_id, item_nome, quantidade, preco, status, data_entrega, observacoes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'fila', ?, ?)`,
+    [
       req.user.id, v.clienteNome, v.clienteContato, v.produtoId, v.itemNome, v.quantidade, v.preco,
-      v.dataEntrega, v.observacoes
-    );
+      v.dataEntrega, v.observacoes,
+    ]
+  );
 
-  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ?').get(info.lastInsertRowid);
+  const encomenda = await db.get('SELECT * FROM orders WHERE id = ?', [info.lastInsertRowid]);
   res.status(201).json({ encomenda });
-});
+}));
 
-app.put('/api/encomendas/:id', auth.exigirLogin, (req, res) => {
-  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.put('/api/encomendas/:id', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const encomenda = await db.get('SELECT * FROM orders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!encomenda) return res.status(404).json({ error: 'nao_encontrada', message: 'Encomenda não encontrada.' });
 
   const { erro, valores: v } = validarEncomenda(req.body);
   if (erro) return res.status(400).json({ error: 'dados_invalidos', message: erro });
 
   if (v.produtoId) {
-    const produto = db.prepare('SELECT id FROM products WHERE id = ? AND user_id = ?').get(v.produtoId, req.user.id);
+    const produto = await db.get('SELECT id FROM products WHERE id = ? AND user_id = ?', [v.produtoId, req.user.id]);
     if (!produto) v.produtoId = null;
   }
 
-  db.prepare(
+  await db.run(
     `UPDATE orders SET
        cliente_nome = ?, cliente_contato = ?, produto_id = ?, item_nome = ?, quantidade = ?, preco = ?,
        data_entrega = ?, observacoes = ?
-     WHERE id = ?`
-  ).run(
-    v.clienteNome, v.clienteContato, v.produtoId, v.itemNome, v.quantidade, v.preco,
-    v.dataEntrega, v.observacoes, encomenda.id
+     WHERE id = ?`,
+    [
+      v.clienteNome, v.clienteContato, v.produtoId, v.itemNome, v.quantidade, v.preco,
+      v.dataEntrega, v.observacoes, encomenda.id,
+    ]
   );
 
-  const atualizada = db.prepare('SELECT * FROM orders WHERE id = ?').get(encomenda.id);
+  const atualizada = await db.get('SELECT * FROM orders WHERE id = ?', [encomenda.id]);
   res.json({ encomenda: atualizada });
-});
+}));
 
-app.post('/api/encomendas/:id/status', auth.exigirLogin, (req, res) => {
-  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.post('/api/encomendas/:id/status', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const encomenda = await db.get('SELECT * FROM orders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!encomenda) return res.status(404).json({ error: 'nao_encontrada', message: 'Encomenda não encontrada.' });
 
   const status = String((req.body && req.body.status) || '');
@@ -407,19 +423,29 @@ app.post('/api/encomendas/:id/status', auth.exigirLogin, (req, res) => {
     return res.status(400).json({ error: 'status_invalido', message: 'Status inválido.' });
   }
 
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, encomenda.id);
-  const atualizada = db.prepare('SELECT * FROM orders WHERE id = ?').get(encomenda.id);
+  await db.run('UPDATE orders SET status = ? WHERE id = ?', [status, encomenda.id]);
+  const atualizada = await db.get('SELECT * FROM orders WHERE id = ?', [encomenda.id]);
   res.json({ encomenda: atualizada });
-});
+}));
 
-app.delete('/api/encomendas/:id', auth.exigirLogin, (req, res) => {
-  const encomenda = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+app.delete('/api/encomendas/:id', auth.exigirLogin, asyncRoute(async (req, res) => {
+  const encomenda = await db.get('SELECT * FROM orders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
   if (!encomenda) return res.status(404).json({ error: 'nao_encontrada', message: 'Encomenda não encontrada.' });
 
-  db.prepare('DELETE FROM orders WHERE id = ?').run(encomenda.id);
+  await db.run('DELETE FROM orders WHERE id = ?', [encomenda.id]);
   res.json({ ok: true });
-});
+}));
 
-app.listen(PORT, () => {
-  console.log(`Calculadora 3D rodando em http://localhost:${PORT}`);
-});
+// Prepara as tabelas do banco antes de aceitar pedidos. Se isso falhar
+// (por exemplo, dados de conexão do Turso errados), o servidor nem sobe —
+// melhor um erro claro no log do Render do que o site no ar sem banco.
+db.initSchema()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Calculadora 3D rodando em http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Não foi possível preparar o banco de dados:', err);
+    process.exit(1);
+  });

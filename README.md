@@ -31,6 +31,10 @@ Pré-requisito: ter o **Node.js** instalado (o mesmo que você já usa pro Comma
 
 Pra parar o servidor, volte no terminal e aperte `Ctrl + C`.
 
+Rodando assim no seu computador, os dados ficam guardados num arquivo local
+(pasta `data/`). No site publicado no Render, os dados ficam guardados num
+banco de dados externo — veja a seção "Banco de dados" mais abaixo.
+
 ## Como a calculadora pensa o preço
 
 Clique no ⚙️ (configurações) pra ajustar os valores de base. Por padrão:
@@ -81,6 +85,28 @@ mesmo tempo (as já marcadas como Entregue não contam).
 
 O plano premium (ainda não existe forma de assinar) vai liberar impressoras,
 produtos e encomendas ilimitados.
+
+## Banco de dados
+
+As contas, impressoras, produtos e encomendas ficam guardados num banco de
+dados. No seu computador, isso é só um arquivo dentro da pasta `data/` — sem
+segredo. Mas o Render (onde o site fica publicado) **apaga qualquer arquivo
+sempre que o site reinicia**, mesmo sem eu mudar nada no código (ele reinicia
+sozinho depois de um tempo sem visitas, pra economizar recursos no plano
+grátis). Por isso, o site publicado usa um banco de dados externo e
+permanente, o [Turso](https://turso.tech) (SQLite na nuvem, com plano grátis
+generoso e sem cartão de crédito).
+
+Isso é configurado através de duas variáveis de ambiente no painel do
+Render — **nunca no código** (por isso elas não aparecem em nenhum arquivo
+deste projeto):
+
+- `TURSO_DATABASE_URL`
+- `TURSO_AUTH_TOKEN`
+
+Sem essas variáveis configuradas, o projeto usa automaticamente o arquivo
+local (`data/`) — é assim que continua funcionando no seu computador sem
+precisar de conta nenhuma no Turso.
 
 ## Estrutura do projeto
 
